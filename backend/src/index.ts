@@ -138,9 +138,9 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'AI Mood Journal API',
+      title: 'SentiScore API',
       version: '1.0.0',
-      description: 'API for AI-powered mood journal with voice input and emotional analysis',
+      description: 'API for SentiScore - AI-powered mood tracking and emotional wellness platform',
     },
     servers: [
       {

@@ -261,7 +261,7 @@ export interface VoiceRecorderProps {
 }
 
 export interface MoodChartProps {
-  data: MoodChartData;
+  entries: Entry[];
   timeRange: 'week' | 'month' | 'year' | 'all';
   onTimeRangeChange: (range: 'week' | 'month' | 'year' | 'all') => void;
   showAverage?: boolean;

@@ -1,7 +1,7 @@
 {
-  "name": "ai-mood-journal",
+  "name": "sentiscore",
   "version": "1.0.0",
-  "description": "AI-powered mood journal with voice input and emotional analysis",
+  "description": "SentiScore - AI-powered mood tracking and emotional wellness platform",
   "private": true,
   "workspaces": [
     "frontend",

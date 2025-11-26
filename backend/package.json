@@ -1,7 +1,7 @@
 {
-  "name": "@ai-mood-journal/backend",
+  "name": "@sentiscore/backend",
   "version": "1.0.0",
-  "description": "Backend API for AI Mood Journal",
+  "description": "Backend API for SentiScore",
   "main": "src/index.js",
   "scripts": {
     "dev": "node src/server-basic.js",

@@ -150,7 +150,7 @@ export default function VoiceRecorder({
         setAudioLevel(0);
 
         // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
         streamRef.current = null;
         analyserRef.current = null;
 

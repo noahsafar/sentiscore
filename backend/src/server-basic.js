@@ -58,7 +58,7 @@ const sampleEntries = [
 
 const sampleUser = {
   id: 'demo-user',
-  email: 'demo@ai-mood-journal.com',
+  email: 'demo@sentiscore.app',
   name: 'Demo User'
 };
 
@@ -263,7 +263,7 @@ const server = http.createServer((req, res) => {
 const PORT = process.env.PORT || 8000;
 
 server.listen(PORT, () => {
-  console.log(`\n🚀 AI Mood Journal Backend Server`);
+  console.log(`\n🚀 SentiScore Backend Server`);
   console.log(`==============================`);
   console.log(`✅ Server running on: http://localhost:${PORT}`);
   console.log(`\n📝 API Endpoints:`);
@@ -275,7 +275,7 @@ server.listen(PORT, () => {
   console.log(`   POST /api/transcribe`);
   console.log(`   GET  /api/insights`);
   console.log(`\n🔑 Demo Credentials:`);
-  console.log(`   Email: demo@ai-mood-journal.com`);
+  console.log(`   Email: demo@sentiscore.app`);
   console.log(`   Password: password123`);
   console.log(`\n⏰ Server started at: ${new Date().toLocaleString()}`);
 });

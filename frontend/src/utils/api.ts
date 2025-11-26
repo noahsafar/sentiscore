@@ -278,5 +278,23 @@ export function useApi<T = any>(
     fetchData();
   }, dependencies);
 
-  return { data, loading, error, refetch: fetchData };
+  return { data, loading, error, refetch: () => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await apiCall();
+        if (result.success && result.data) {
+          setData(result.data);
+        } else {
+          setError(result.error?.message || 'Failed to fetch data');
+        }
+      } catch (err) {
+        setError(handleApiError(err));
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  } };
 }

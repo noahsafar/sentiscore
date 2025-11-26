@@ -559,7 +559,7 @@ const server = http.createServer(async (req, res) => {
 
 const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => {
-  console.log(`\n🚀 AI Mood Journal Server running on http://localhost:${PORT}`);
+  console.log(`\n🚀 SentiScore Server running on http://localhost:${PORT}`);
   console.log(`📝 Transcription endpoint: POST /api/transcribe`);
   console.log(`🔑 OpenAI API Key: ${process.env.OPENAI_API_KEY ? '✅ Configured' : '⚠️ Not configured'}`);
   console.log(`💡 Note: Using sophisticated mock transcription system`);

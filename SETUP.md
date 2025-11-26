@@ -1,6 +1,6 @@
-# AI Mood Journal - Setup Guide
+# SentiScore - Setup Guide
 
-A complete AI-powered mood journal application with voice input, sentiment analysis, and mood tracking.
+A complete AI-powered mood tracking and emotional wellness platform with voice input, sentiment analysis, and mood tracking.
 
 ## 🚀 Quick Start
 
@@ -14,8 +14,8 @@ A complete AI-powered mood journal application with voice input, sentiment analy
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/ai-mood-journal.git
-cd ai-mood-journal
+git clone https://github.com/noahsafar/sentiscore.git
+cd sentiscore
 ```
 
 ### 2. Install Dependencies
@@ -112,7 +112,7 @@ npm run dev:backend   # Backend on http://localhost:8000
 ### 7. Demo Account
 
 Login with:
-- Email: `demo@ai-mood-journal.com`
+- Email: `demo@sentiscore.app`
 - Password: `password123`
 
 ## 🛠️ Development
@@ -120,7 +120,7 @@ Login with:
 ### Project Structure
 
 ```
-ai-mood-journal/
+sentiscore/
 ├── frontend/          # Next.js app
 │   ├── src/
 │   │   ├── components/

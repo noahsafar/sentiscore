@@ -66,11 +66,12 @@ export default function QuickStats({
       {stats.map((stat) => {
         const Icon = stat.icon;
         const isStreak = stat.name.includes('Streak');
-        const percentage = isStreak && stat.value > 0
-          ? Math.min((stat.value / 30) * 100, 100)
+        const numericValue = typeof stat.value === 'string' ? parseFloat(stat.value) : stat.value;
+        const percentage = isStreak && numericValue > 0
+          ? Math.min((numericValue / 30) * 100, 100)
           : stat.name === 'Total Entries'
-          ? Math.min((stat.value / 100) * 100, 100)
-          : (parseFloat(stat.value) / 10) * 100;
+          ? Math.min((numericValue / 100) * 100, 100)
+          : (numericValue / 10) * 100;
 
         return (
           <div
@@ -165,7 +166,7 @@ export default function QuickStats({
             </div>
 
             {/* Additional context for streaks */}
-            {isStreak && stat.value > 0 && (
+            {isStreak && numericValue > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Last entry: {format(new Date(), 'MMM d')}
@@ -174,7 +175,7 @@ export default function QuickStats({
             )}
 
             {/* Motivational message */}
-            {stat.name === 'Current Streak' && stat.value === 0 && (
+            {stat.name === 'Current Streak' && numericValue === 0 && (
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                 <p className="text-xs text-primary-600 dark:text-primary-400">
                   Start your streak today!
@@ -183,7 +184,7 @@ export default function QuickStats({
             )}
 
             {/* Achievement badge */}
-            {stat.name === 'Current Streak' && stat.value >= 7 && (
+            {stat.name === 'Current Streak' && numericValue >= 7 && (
               <div className="mt-3">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
                   🔥 On a roll!
@@ -191,7 +192,7 @@ export default function QuickStats({
               </div>
             )}
 
-            {stat.name === 'Total Entries' && stat.value >= 30 && (
+            {stat.name === 'Total Entries' && numericValue >= 30 && (
               <div className="mt-3">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                   📊 Committed!

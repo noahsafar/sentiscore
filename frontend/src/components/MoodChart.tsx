@@ -162,7 +162,7 @@ export default function MoodChart({
       x: {
         type: 'time' as const,
         time: {
-          unit: timeRange === 'week' ? 'day' : timeRange === 'month' ? 'week' : 'month',
+          unit: timeRange === 'week' ? 'day' as const : timeRange === 'month' ? 'week' as const : 'month' as const,
           displayFormats: {
             day: 'MMM dd',
             week: 'MMM dd',
@@ -178,7 +178,7 @@ export default function MoodChart({
         max: 10,
         ticks: {
           stepSize: 2,
-          callback: (value: number) => value.toFixed(0),
+          callback: (value: string | number) => typeof value === 'number' ? value.toFixed(0) : parseFloat(value).toFixed(0),
         },
         grid: {
           color: 'rgba(0, 0, 0, 0.05)',

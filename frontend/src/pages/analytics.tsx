@@ -140,7 +140,7 @@ export default function Analytics() {
                 Mood Trends
               </h2>
               <MoodChart
-                data={chartData.chartData}
+                entries={chartData?.entries || []}
                 timeRange={timeRange}
                 onTimeRangeChange={setTimeRange}
                 showAverage={true}
