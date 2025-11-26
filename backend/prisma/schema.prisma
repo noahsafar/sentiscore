@@ -1,0 +1,243 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  avatar    String?
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  entries     Entry[]
+  insights    Insight[]
+  reminders   Reminder[]
+  sessions    UserSession[]
+  exports     Export[]
+  preferences UserPreferences?
+
+  @@map("users")
+}
+
+// User preferences
+model UserPreferences {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  theme        String  @default("auto") // light, dark, auto
+  language     String  @default("en")
+  notifications Json   @default("{}")
+  privacy      Json    @default("{}")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+// User sessions for authentication
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+// Journal entries
+model Entry {
+  id         String   @id @default(cuid())
+  userId     String
+  date       DateTime
+  transcript String
+  audioUrl   String?
+  audioPath  String?
+  duration   Int?     // seconds
+  isPublic   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moodScores   MoodScore?
+  analysis     EntryAnalysis?
+  tags         EntryTag[]
+  insights     InsightEntry[]
+
+  @@unique([userId, date]) // One entry per day per user
+  @@map("entries")
+}
+
+// Mood scores for entries
+model MoodScore {
+  id                 String  @id @default(cuid())
+  entryId            String  @unique
+  stress             Float   // 0-10
+  happiness          Float   // 0-10
+  clarity            Float   // 0-10
+  energy             Float   // 0-10
+  emotionalStability Float   // 0-10
+  overall            Float   // 0-10 (calculated average)
+
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@map("mood_scores")
+}
+
+// Detailed analysis of entries
+model EntryAnalysis {
+  id          String  @id @default(cuid())
+  entryId     String  @unique
+  sentiment   Json    // sentiment analysis results
+  emotions    Json    // emotion detection results
+  tone        Json    // tone analysis results
+  cognitive   Json    // cognitive load analysis
+  advice      String?
+  summary     String?
+  keywords    String[] // extracted keywords
+  confidence  Float   // overall confidence in analysis
+
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@map("entry_analysis")
+}
+
+// Tags for entries
+model Tag {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  color      String      @default("#gray500")
+  createdAt  DateTime    @default(now())
+
+  entries EntryTag[]
+
+  @@map("tags")
+}
+
+// Junction table for entries and tags
+model EntryTag {
+  id      String @id @default(cuid())
+  entryId String
+  tagId   String
+
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([entryId, tagId])
+  @@map("entry_tags")
+}
+
+// Insights generated for users
+model Insight {
+  id          String          @id @default(cuid())
+  userId      String
+  type        String          // pattern, trend, anomaly, improvement, warning, advice
+  title       String
+  description String
+  confidence  Float           // 0-1
+  actionItems String[]        @default([])
+  data        Json?           // supporting data
+  isRead      Boolean         @default(false)
+  isDismissed Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relations
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries InsightEntry[]
+
+  @@map("insights")
+}
+
+// Junction table for insights and related entries
+model InsightEntry {
+  id        String @id @default(cuid())
+  insightId String
+  entryId   String
+
+  insight Insight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  entry   Entry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@unique([insightId, entryId])
+  @@map("insight_entries")
+}
+
+// Daily reminders
+model Reminder {
+  id           String   @id @default(cuid())
+  userId       String
+  time         String   // HH:MM format
+  timezone     String
+  isEnabled    Boolean  @default(true)
+  lastSent     DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("reminders")
+}
+
+// Export requests
+model Export {
+  id         String   @id @default(cuid())
+  userId     String
+  format     String   // pdf, json, csv
+  options    Json     // export options
+  status     String   @default("pending") // pending, processing, completed, failed
+  fileUrl    String?
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("exports")
+}
+
+// Search history
+model SearchHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  query     String
+  filters   Json?    // search filters used
+  results   Int      // number of results
+  createdAt DateTime @default(now())
+
+  @@map("search_history")
+}
+
+// User activity log
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String   // login, entry_created, insight_viewed, etc.
+  resource   String?  // resource type
+  resourceId String?  // resource ID
+  metadata   Json?    // additional data
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
