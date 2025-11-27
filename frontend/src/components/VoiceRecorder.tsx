@@ -246,9 +246,7 @@ export default function VoiceRecorder({
       dispatch(appActions.setRecordingState('recording'));
       updateAudioLevel();
 
-      const message = hasEntryToday
-        ? 'Recording new entry for today (will replace previous one)...'
-        : 'Recording started... Speak now!';
+      const message = 'Recording started... Speak now!';
 
       toast.success(message, { duration: 3000 });
     } catch (error) {
@@ -331,22 +329,11 @@ export default function VoiceRecorder({
     <div className="w-full max-w-2xl mx-auto">
       {!isRecording ? (
         <div className="space-y-4">
-          {hasEntryToday ? (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <div className="flex items-center space-x-2">
-                <ArrowPathIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-                <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  You've already recorded today. Recording again will replace today's entry.
-                </p>
-              </div>
-            </div>
-          ) : null}
-
           <button
             onClick={startRecording}
             disabled={disabled || state.recordingState === 'processing'}
             className="
-              w-full py-6 px-8 rounded-2xl border-2 border-dashed
+              w-full py-6 px-16 rounded-2xl border-2 border-dashed
               border-primary-300 dark:border-primary-600
               hover:border-primary-400 dark:hover:border-primary-500
               hover:bg-primary-50 dark:hover:bg-primary-900/20
@@ -372,10 +359,7 @@ export default function VoiceRecorder({
                   }
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {hasEntryToday
-                    ? `Record a new entry for today (current will be replaced)`
-                    : `Speak freely for up to ${formatDuration(maxDuration)}`
-                  }
+                  Speak freely for up to {formatDuration(maxDuration)}
                 </p>
               </div>
             </div>

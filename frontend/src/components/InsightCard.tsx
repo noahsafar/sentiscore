@@ -122,7 +122,7 @@ export default function InsightCard({
         {insight.title}
       </h3>
 
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 leading-relaxed">
         {insight.description}
       </p>
 

@@ -1,51 +1,74 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import VoiceRecorder from '@/components/VoiceRecorder';
-import { useAppContext } from '@/store/AppContext';
-import { MicrophoneIcon, FaceSmileIcon } from '@heroicons/react/24/outline';
+import { useAppContext, appActions } from '@/store/AppContext';
+import { MicrophoneIcon, FaceSmileIcon, ArrowPathIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { saveOrReplaceTodayEntry, findTodayEntry } from '@/utils/entryHelpers';
 
 export default function CheckIn() {
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [moodScores, setMoodScores] = useState<any>(null);
+
+  // Use AppContext entries as source of truth
+  const entries = state.entries || [];
+  const hasEntryToday = findTodayEntry(entries) !== null;
+
+  useEffect(() => {
+    loadEntries();
+  }, []);
+
+  const loadEntries = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/entries');
+      const { data } = await response.json();
+      const fetchedEntries = data.entries || [];
+
+      // Update global AppContext with fresh data
+      dispatch(appActions.setEntries(fetchedEntries));
+    } catch (error) {
+      console.error('Failed to load entries:', error);
+    }
+  };
 
   const handleRecordingComplete = async (recording: Blob, transcript: string) => {
     try {
       setIsProcessing(true);
       setTranscript(transcript);
 
-      // Send audio and transcript for analysis
-      const formData = new FormData();
-      formData.append('audio', recording);
-      formData.append('transcript', transcript);
+      // For now, skip the analysis and go straight to saving
+      // In a real implementation, you'd call the analysis API here
+      const mockMoodScores = {
+        stress: Math.random() * 10,
+        happiness: Math.random() * 10,
+        clarity: Math.random() * 10,
+        energy: Math.random() * 10,
+        emotionalStability: Math.random() * 10,
+        overall: Math.random() * 10,
+      };
 
-      const response = await fetch('http://localhost:8000/api/analyze', {
-        method: 'POST',
-        body: formData,
-      });
+      setMoodScores(mockMoodScores);
 
-      if (response.ok) {
-        const { data } = await response.json();
-        setMoodScores(data.moodScores);
+      // Use centralized function to enforce one-entry-per-day rule
+      const result = await saveOrReplaceTodayEntry(
+        entries,
+        transcript,
+        recording,
+        {
+          moodScores: mockMoodScores,
+          insights: [], // Add insights later if needed
+        }
+      );
 
-        // Save the entry
-        await fetch('http://localhost:8000/api/entries', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            transcript,
-            moodScores: data.moodScores,
-            insights: data.insights,
-          }),
-        });
-
-        toast.success('Check-in saved successfully!');
+      // Update global AppContext entries list
+      if (result.wasReplaced) {
+        dispatch(appActions.updateEntry(result.entry));
+        toast.success('Today\'s check-in has been replaced!');
       } else {
-        throw new Error('Failed to analyze recording');
+        dispatch(appActions.addEntry(result.entry));
+        toast.success('Check-in saved successfully!');
       }
     } catch (error) {
       console.error('Error processing recording:', error);
@@ -67,9 +90,15 @@ export default function CheckIn() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             Voice Check-in
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
             Take a moment to reflect on how you're feeling
           </p>
+          {hasEntryToday && (
+            <div className="inline-flex items-center space-x-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-4 py-2 rounded-full">
+              <CheckCircleIcon className="h-5 w-5" />
+              <span className="text-sm font-medium">Check-in complete for today</span>
+            </div>
+          )}
         </div>
 
         {!transcript ? (
@@ -79,14 +108,17 @@ export default function CheckIn() {
                 <MicrophoneIcon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
               </div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Start Recording
+                {hasEntryToday ? 'Replace Today\'s Check-in' : 'Start Recording'}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Click the microphone button and speak freely about your day, feelings, or thoughts
               </p>
             </div>
 
-            <VoiceRecorder onRecordingComplete={handleRecordingComplete} />
+            <VoiceRecorder
+              onRecordingComplete={handleRecordingComplete}
+              hasEntryToday={hasEntryToday}
+            />
 
             <div className="mt-6 text-sm text-gray-500 dark:text-gray-400">
               <p>💡 Tips:</p>

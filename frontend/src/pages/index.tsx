@@ -3,18 +3,20 @@ import { useRouter } from 'next/router';
 import { useAppContext, appActions } from '@/store/AppContext';
 import { Entry, DashboardData } from '@/types';
 import Layout from '@/components/Layout';
-import VoiceRecorder from '@/components/VoiceRecorder';
 import MoodChart from '@/components/MoodChart';
-import EntryCard from '@/components/EntryCard';
 import InsightCard from '@/components/InsightCard';
 import QuickStats from '@/components/QuickStats';
-import { CalendarIcon, ChartBarIcon, MicrophoneIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
+import VoiceRecorder from '@/components/VoiceRecorder';
+import { ChartBarIcon, MicrophoneIcon, ArrowTrendingUpIcon, ChevronDownIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { saveOrReplaceTodayEntry, findTodayEntry } from '@/utils/entryHelpers';
+import toast from 'react-hot-toast';
 
 export default function Dashboard() {
   const router = useRouter();
   const { state, dispatch } = useAppContext();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year' | 'all'>('month');
+  const [selectedInsightIndex, setSelectedInsightIndex] = useState(0);
 
   useEffect(() => {
     if (!state.user) {
@@ -23,6 +25,36 @@ export default function Dashboard() {
     }
 
     loadDashboardData();
+  }, [state.user]); // Load data when component mounts or user changes
+
+  // Always refresh data when component mounts (handles page refresh and navigation)
+  useEffect(() => {
+    if (state.user) {
+      loadDashboardData();
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Additional effect to refresh data when component becomes visible (handles navigation)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && state.user) {
+        loadDashboardData();
+      }
+    };
+
+    const handleFocus = () => {
+      if (state.user) {
+        loadDashboardData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [state.user]);
 
   const loadDashboardData = async () => {
@@ -33,7 +65,7 @@ export default function Dashboard() {
       const entriesResponse = await fetch('http://localhost:8000/api/entries?limit=10');
       if (entriesResponse.ok) {
         const { data } = await entriesResponse.json();
-        dispatch(appActions.setEntries(data.data || []));
+        dispatch(appActions.setEntries(data.entries || []));
       }
 
       // Load insights
@@ -62,66 +94,20 @@ export default function Dashboard() {
     try {
       dispatch(appActions.setRecordingState('processing'));
 
-      // Get today's date (no time component) for comparison
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Set to midnight for accurate date comparison
+      // Use centralized function to save or replace today's entry
+      const result = await saveOrReplaceTodayEntry(
+        state.entries || [],
+        transcript,
+        recording
+      );
 
-      // Check if there's already an entry for today
-      const todayEntry = state.entries?.find(entry => {
-        const entryDate = new Date(entry.date);
-        entryDate.setHours(0, 0, 0, 0); // Also set to midnight
-        return entryDate.getTime() === today.getTime();
-      });
-
-      const formData = new FormData();
-      formData.append('audio', recording, 'recording.webm');
-      formData.append('transcript', transcript);
-      formData.append('date', new Date().toISOString());
-
-      if (todayEntry) {
-        // Replace existing entry
-        console.log('🔄 Replacing today\'s entry...');
-        console.log('📝 Existing entry ID:', todayEntry.id);
-        console.log('📝 Existing date:', todayEntry.date);
-        console.log('📝 New transcript:', transcript);
-
-        const response = await fetch(`http://localhost:8000/api/entries/${todayEntry.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            transcript,
-            date: new Date().toISOString(),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update entry');
-        }
-
-        const { data } = await response.json();
-        console.log('✅ Entry replaced:', data);
+      // Update the app state
+      if (result.wasReplaced) {
+        dispatch(appActions.updateEntry(result.entry));
         toast.success('Today\'s entry has been replaced!');
-        dispatch(appActions.updateEntry(data));
       } else {
-        // Create new entry
-        console.log('📤 Creating new entry for today...');
-        console.log('📝 Transcript:', transcript);
-
-        const response = await fetch('http://localhost:8000/api/entries', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to save entry');
-        }
-
-        const { data } = await response.json();
-        console.log('✅ New entry saved:', data);
+        dispatch(appActions.addEntry(result.entry));
         toast.success('Daily entry saved successfully!');
-        dispatch(appActions.addEntry(data));
       }
 
       // Reload all dashboard data after adding/replacing entry
@@ -134,15 +120,7 @@ export default function Dashboard() {
     }
   };
 
-  const hasEntryToday = state.entries && state.entries.some(entry => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const entryDate = new Date(entry.date);
-    entryDate.setHours(0, 0, 0, 0);
-
-    return entryDate.getTime() === today.getTime();
-  });
+  const hasEntryToday = findTodayEntry(state.entries) !== null;
 
   return (
     <Layout>
@@ -169,52 +147,31 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Voice Recorder Section */}
-        <div className="mb-8">
+        {/* Voice Check-in Section */}
+        <div className="mb-8 mt-8">
           <div className="glass rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center mb-4">
                 <MicrophoneIcon className="h-6 w-6 text-primary-500 mr-2" />
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                   {hasEntryToday ? "Replace Today's Entry" : "Daily Check-in"}
                 </h2>
               </div>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Take a moment to reflect on how you're feeling
+              </p>
               {hasEntryToday && (
-                <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                  ✓ Recorded
-                </span>
+                <div className="inline-flex items-center space-x-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-4 py-2 rounded-full">
+                  <CheckCircleIcon className="h-5 w-5" />
+                  <span className="text-sm font-medium">Check-in complete for today</span>
+                </div>
               )}
             </div>
-            {hasEntryToday ? (
-              <div className="space-y-4">
-                <p className="text-gray-600 dark:text-gray-400">
-                  You've completed your daily check-in. Would you like to record a new entry?
-                </p>
-                <button
-                  onClick={() => {
-                    if (confirm('This will replace today\'s entry. Continue?')) {
-                      // Remove today's entry and enable recording
-                      const todayEntry = state.entries.find(
-                        entry => new Date(entry.date).toDateString() === new Date().toDateString()
-                      );
-                      if (todayEntry) {
-                        dispatch(appActions.deleteEntry(todayEntry.id));
-                      }
-                    }
-                  }}
-                  className="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <MicrophoneIcon className="h-4 w-4 mr-2" />
-                  Re-record Today's Entry
-                </button>
-              </div>
-            ) : (
-              <VoiceRecorder
-                onRecordingComplete={handleVoiceRecording}
-                disabled={state.recordingState === 'processing'}
-                hasEntryToday={hasEntryToday}
-              />
-            )}
+
+            <VoiceRecorder
+              onRecordingComplete={handleVoiceRecording}
+              hasEntryToday={hasEntryToday}
+            />
           </div>
         </div>
 
@@ -251,77 +208,60 @@ export default function Dashboard() {
 
           {/* Insights Column */}
           <div className="lg:col-span-1">
-            <div className="glass rounded-2xl p-6">
+            <div className="glass rounded-2xl p-6 h-full flex flex-col">
               <div className="flex items-center mb-4">
                 <ArrowTrendingUpIcon className="h-6 w-6 text-primary-500 mr-2" />
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                   Insights
                 </h2>
               </div>
-              <div className="space-y-4">
-                {state.insights.length > 0 ? (
-                  state.insights.slice(0, 3).map((insight) => (
-                    <InsightCard
-                      key={insight.id}
-                      insight={insight}
-                      onViewDetails={() => router.push(`/insights/${insight.id}`)}
-                      onDismiss={() => {
-                        // TODO: Implement dismiss insight
-                      }}
-                    />
-                  ))
-                ) : (
-                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                    Keep journaling to unlock insights about your mood patterns!
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Recent Entries */}
-        <div className="mt-12">
-          <div className="glass rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center">
-                <CalendarIcon className="h-6 w-6 text-primary-500 mr-2" />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Recent Entries
-                </h2>
-              </div>
-              <button
-                onClick={() => router.push('/entries')}
-                className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-              >
-                View All
-              </button>
-            </div>
-            <div className="space-y-4">
-              {state.entries.length > 0 ? (
-                state.entries.slice(0, 5).map((entry) => (
-                  <EntryCard
-                    key={entry.id}
-                    entry={entry}
-                    showFullTranscript={false}
-                    onEdit={() => dispatch(appActions.setSelectedEntry(entry))}
-                    onDelete={async () => {
-                      // TODO: Implement delete confirmation
-                      try {
-                        await fetch(`http://localhost:8000/api/entries/${entry.id}`, {
-                          method: 'DELETE',
-                        });
-                        dispatch(appActions.deleteEntry(entry.id));
-                      } catch (error) {
-                        console.error('Failed to delete entry:', error);
-                      }
-                    }}
-                  />
-                ))
+              {state.insights.length > 0 ? (
+                <>
+                  {/* Selected Insight Content */}
+                  <div className="flex-1 min-h-0 overflow-y-auto">
+                    <div className="h-full">
+                      <InsightCard
+                        insight={state.insights[selectedInsightIndex]}
+                        onViewDetails={() => router.push(`/insights/${state.insights[selectedInsightIndex].id}`)}
+                        onDismiss={() => {
+                          // TODO: Implement dismiss insight
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Elegant dot indicators */}
+                  <div className="flex justify-center space-x-3 mt-4">
+                    {state.insights.slice(0, 3).map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setSelectedInsightIndex(index)}
+                        className={`group relative transition-all duration-200 ${
+                          selectedInsightIndex === index ? 'scale-125' : 'hover:scale-110'
+                        }`}
+                      >
+                        <div className={`h-3 w-3 rounded-full transition-all duration-200 ${
+                          selectedInsightIndex === index
+                            ? 'bg-primary-600 shadow-lg shadow-primary-500/50'
+                            : 'bg-gray-300 dark:bg-gray-600 group-hover:bg-gray-400 dark:group-hover:bg-gray-500'
+                        }`} />
+                        {selectedInsightIndex === index && (
+                          <div className="absolute inset-0 h-3 w-3 rounded-full bg-primary-400 animate-ping opacity-75"></div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
               ) : (
-                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                  No entries yet. Start by recording your first check-in!
-                </p>
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <ArrowTrendingUpIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Keep journaling to unlock insights about your mood patterns!
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
