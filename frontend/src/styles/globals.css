@@ -25,6 +25,48 @@ body {
   min-height: 100vh;
 }
 
+/* Overscroll background colors */
+html {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+body {
+  overscroll-behavior: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Ensure document canvas has our background */
+#root {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+/* Cover overscroll areas */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  z-index: -1;
+}
+
+body::before {
+  top: -100vh;
+}
+
+body::after {
+  bottom: -100vh;
+}
+
+/* Also set background on viewport for iOS Safari */
+:root {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
 body {
   color: #1f2937;
 }
@@ -160,9 +202,38 @@ a {
 
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
+  html,
   body {
     background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
     color: #f3f4f6;
+    min-height: 100vh;
+  }
+
+  /* Dark mode overscroll background colors */
+  html {
+    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
+    min-height: 100vh;
+  }
+
+  body {
+    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
+  }
+
+  /* Dark mode root background */
+  :root {
+    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
+  }
+
+  /* Dark mode cover overscroll areas */
+  body::before,
+  body::after {
+    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
+  }
+
+  /* Ensure document canvas has our background in dark mode */
+  #root {
+    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
+    min-height: 100vh;
   }
 
   .glass {

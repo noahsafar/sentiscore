@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import EntryCard from '@/components/EntryCard';
 import { useAppContext, appActions } from '@/store/AppContext';
 import { Entry } from '@/types';
-import { CalendarIcon, MagnifyingGlassIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 export default function Entries() {
   const router = useRouter();
@@ -46,17 +46,10 @@ export default function Entries() {
     <Layout>
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Journal Entries
             </h1>
-            <button
-              onClick={() => router.push('/check-in')}
-              className="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
-            >
-              <MicrophoneIcon className="h-4 w-4 mr-2" />
-              New Entry
-            </button>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
