@@ -22,7 +22,7 @@ export default function Entries() {
   const loadEntries = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/entries');
+      const response = await fetch('http://localhost:8000/api/entries');
       const { data } = await response.json();
       setEntries(data.entries || []);
     } catch (error) {
@@ -38,7 +38,7 @@ export default function Entries() {
       formData.append('audio', recording);
       formData.append('transcript', transcript);
 
-      const response = await fetch('/api/entries', {
+      const response = await fetch('http://localhost:8000/api/entries', {
         method: 'POST',
         body: formData,
       });
@@ -119,7 +119,7 @@ export default function Entries() {
                 onEdit={(entry) => router.push(`/entries/${entry.id}/edit`)}
                 onDelete={async (entryId) => {
                   if (confirm('Are you sure you want to delete this entry?')) {
-                    await fetch(`/api/entries/${entryId}`, { method: 'DELETE' });
+                    await fetch(`http://localhost:8000/api/entries/${entryId}`, { method: 'DELETE' });
                     await loadEntries();
                   }
                 }}

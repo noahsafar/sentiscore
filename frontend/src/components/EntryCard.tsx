@@ -55,7 +55,21 @@ export default function EntryCard({
     }
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateInput: string | Date) => {
+    // Handle both string dates and Date objects
+    let date: Date;
+    try {
+      date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+
+      // Check if the date is invalid
+      if (isNaN(date.getTime())) {
+        throw new Error('Invalid date');
+      }
+    } catch (error) {
+      // Return a fallback if date parsing fails
+      return 'Unknown date';
+    }
+
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -83,7 +97,7 @@ export default function EntryCard({
             <span className="text-2xl">{getMoodEmoji(entry.moodScores.overall)}</span>
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {formatDate(new Date(entry.date))}
+                {formatDate(entry.date)}
               </p>
               <div className="flex items-center space-x-2 mt-1">
                 <span className={`text-sm font-medium ${calculateMoodColor(entry.moodScores.overall)}`}>

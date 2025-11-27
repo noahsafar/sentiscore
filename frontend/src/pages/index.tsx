@@ -30,21 +30,21 @@ export default function Dashboard() {
       dispatch(appActions.setLoading(true));
 
       // Load entries
-      const entriesResponse = await fetch('/api/entries?limit=10');
+      const entriesResponse = await fetch('http://localhost:8000/api/entries?limit=10');
       if (entriesResponse.ok) {
         const { data } = await entriesResponse.json();
         dispatch(appActions.setEntries(data.data || []));
       }
 
       // Load insights
-      const insightsResponse = await fetch('/api/insights?limit=5');
+      const insightsResponse = await fetch('http://localhost:8000/api/insights?limit=5');
       if (insightsResponse.ok) {
         const { data } = await insightsResponse.json();
         dispatch(appActions.setInsights(data.insights || []));
       }
 
       // Load dashboard stats
-      const statsResponse = await fetch('/api/dashboard/stats');
+      const statsResponse = await fetch('http://localhost:8000/api/dashboard/stats');
       if (statsResponse.ok) {
         const { data } = await statsResponse.json();
         setDashboardData(data);
@@ -58,39 +58,91 @@ export default function Dashboard() {
   };
 
   const handleVoiceRecording = async (recording: Blob, transcript: string) => {
+    console.log('🎤 handleVoiceRecording called with transcript:', transcript);
     try {
       dispatch(appActions.setRecordingState('processing'));
+
+      // Get today's date (no time component) for comparison
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to midnight for accurate date comparison
+
+      // Check if there's already an entry for today
+      const todayEntry = state.entries?.find(entry => {
+        const entryDate = new Date(entry.date);
+        entryDate.setHours(0, 0, 0, 0); // Also set to midnight
+        return entryDate.getTime() === today.getTime();
+      });
 
       const formData = new FormData();
       formData.append('audio', recording, 'recording.webm');
       formData.append('transcript', transcript);
       formData.append('date', new Date().toISOString());
 
-      const response = await fetch('/api/entries', {
-        method: 'POST',
-        body: formData,
-      });
+      if (todayEntry) {
+        // Replace existing entry
+        console.log('🔄 Replacing today\'s entry...');
+        console.log('📝 Existing entry ID:', todayEntry.id);
+        console.log('📝 Existing date:', todayEntry.date);
+        console.log('📝 New transcript:', transcript);
 
-      if (!response.ok) {
-        throw new Error('Failed to save entry');
+        const response = await fetch(`http://localhost:8000/api/entries/${todayEntry.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            transcript,
+            date: new Date().toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update entry');
+        }
+
+        const { data } = await response.json();
+        console.log('✅ Entry replaced:', data);
+        toast.success('Today\'s entry has been replaced!');
+        dispatch(appActions.updateEntry(data));
+      } else {
+        // Create new entry
+        console.log('📤 Creating new entry for today...');
+        console.log('📝 Transcript:', transcript);
+
+        const response = await fetch('http://localhost:8000/api/entries', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save entry');
+        }
+
+        const { data } = await response.json();
+        console.log('✅ New entry saved:', data);
+        toast.success('Daily entry saved successfully!');
+        dispatch(appActions.addEntry(data));
       }
 
-      const { data } = await response.json();
-      dispatch(appActions.addEntry(data));
-
-      // Reload all dashboard data after adding entry
+      // Reload all dashboard data after adding/replacing entry
       await loadDashboardData();
     } catch (error) {
-      console.error('Failed to save entry:', error);
+      console.error('❌ Failed to save entry:', error);
       dispatch(appActions.setError('Failed to save your journal entry'));
     } finally {
       dispatch(appActions.setRecordingState('idle'));
     }
   };
 
-  const hasEntryToday = state.entries && state.entries.some(
-    entry => new Date(entry.date).toDateString() === new Date().toDateString()
-  );
+  const hasEntryToday = state.entries && state.entries.some(entry => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const entryDate = new Date(entry.date);
+    entryDate.setHours(0, 0, 0, 0);
+
+    return entryDate.getTime() === today.getTime();
+  });
 
   return (
     <Layout>
@@ -102,8 +154,8 @@ export default function Dashboard() {
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             {hasEntryToday
-              ? "You've already checked in today. Here's how you're doing."
-              : "How are you feeling today? Let's check in."}
+              ? "Daily entry complete! Record again to replace today's entry."
+              : "How are you feeling today? Let's record your daily check-in."}
           </p>
         </div>
 
@@ -118,22 +170,53 @@ export default function Dashboard() {
         )}
 
         {/* Voice Recorder Section */}
-        {!hasEntryToday && (
-          <div className="mb-8">
-            <div className="glass rounded-2xl p-6">
-              <div className="flex items-center mb-4">
+        <div className="mb-8">
+          <div className="glass rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
                 <MicrophoneIcon className="h-6 w-6 text-primary-500 mr-2" />
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Daily Check-in
+                  {hasEntryToday ? "Replace Today's Entry" : "Daily Check-in"}
                 </h2>
               </div>
+              {hasEntryToday && (
+                <span className="text-sm text-green-600 dark:text-green-400 font-medium">
+                  ✓ Recorded
+                </span>
+              )}
+            </div>
+            {hasEntryToday ? (
+              <div className="space-y-4">
+                <p className="text-gray-600 dark:text-gray-400">
+                  You've completed your daily check-in. Would you like to record a new entry?
+                </p>
+                <button
+                  onClick={() => {
+                    if (confirm('This will replace today\'s entry. Continue?')) {
+                      // Remove today's entry and enable recording
+                      const todayEntry = state.entries.find(
+                        entry => new Date(entry.date).toDateString() === new Date().toDateString()
+                      );
+                      if (todayEntry) {
+                        dispatch(appActions.deleteEntry(todayEntry.id));
+                      }
+                    }
+                  }}
+                  className="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <MicrophoneIcon className="h-4 w-4 mr-2" />
+                  Re-record Today's Entry
+                </button>
+              </div>
+            ) : (
               <VoiceRecorder
                 onRecordingComplete={handleVoiceRecording}
                 disabled={state.recordingState === 'processing'}
+                hasEntryToday={hasEntryToday}
               />
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -198,7 +281,7 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Entries */}
-        <div className="mt-8">
+        <div className="mt-12">
           <div className="glass rounded-2xl p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
@@ -225,7 +308,7 @@ export default function Dashboard() {
                     onDelete={async () => {
                       // TODO: Implement delete confirmation
                       try {
-                        await fetch(`/api/entries/${entry.id}`, {
+                        await fetch(`http://localhost:8000/api/entries/${entry.id}`, {
                           method: 'DELETE',
                         });
                         dispatch(appActions.deleteEntry(entry.id));

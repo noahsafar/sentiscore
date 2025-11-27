@@ -15,6 +15,7 @@ export default function Layout({ children }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isAuthPage = router.pathname === '/login' || router.pathname === '/register';
+  const isDashboard = router.pathname === '/';
 
   if (isAuthPage) {
     return <div className="min-h-screen">{children}</div>;
@@ -119,7 +120,7 @@ export default function Layout({ children }: LayoutProps) {
         </div>
 
         {/* Page content */}
-        <main className="flex-1">
+        <main className={`flex-1 ${isDashboard ? 'py-0' : 'py-8'} px-4 sm:px-6 lg:px-8`}>
           {children}
         </main>
       </div>

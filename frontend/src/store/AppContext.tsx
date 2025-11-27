@@ -119,41 +119,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Load saved data from localStorage on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme;
-    if (savedTheme) {
-      dispatch({ type: 'SET_THEME', payload: savedTheme });
-    }
+    // Check if we're in the browser
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme') as Theme;
+      if (savedTheme) {
+        dispatch({ type: 'SET_THEME', payload: savedTheme });
+      }
 
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        dispatch({ type: 'SET_USER', payload: user });
-      } catch (error) {
-        console.error('Failed to parse saved user:', error);
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        try {
+          const user = JSON.parse(savedUser);
+          dispatch({ type: 'SET_USER', payload: user });
+        } catch (error) {
+          console.error('Failed to parse saved user:', error);
+        }
       }
     }
   }, []);
 
   // Save theme to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('theme', state.theme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', state.theme);
 
-    // Apply theme to document
-    const root = document.documentElement;
-    if (state.theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
+      // Apply theme to document
+      const root = document.documentElement;
+      if (state.theme === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
     }
   }, [state.theme]);
 
   // Save user to localStorage when it changes
   useEffect(() => {
-    if (state.user) {
-      localStorage.setItem('user', JSON.stringify(state.user));
-    } else {
-      localStorage.removeItem('user');
+    if (typeof window !== 'undefined') {
+      if (state.user) {
+        localStorage.setItem('user', JSON.stringify(state.user));
+      } else {
+        localStorage.removeItem('user');
+      }
     }
   }, [state.user]);
 

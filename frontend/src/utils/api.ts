@@ -45,7 +45,7 @@ class ApiClient {
 
   // Auth endpoints
   async login(email: string, password: string) {
-    const response = await this.client.post('/api/auth/login', { email, password });
+    const response = await this.client.post('http://localhost:8000/api/auth/login', { email, password });
     return response.data;
   }
 
@@ -55,22 +55,22 @@ class ApiClient {
     password: string;
     timezone: string;
   }) {
-    const response = await this.client.post('/api/auth/register', userData);
+    const response = await this.client.post('http://localhost:8000/api/auth/register', userData);
     return response.data;
   }
 
   async logout() {
-    await this.client.post('/api/auth/logout');
+    await this.client.post('http://localhost:8000/api/auth/logout');
   }
 
   async refreshToken() {
-    const response = await this.client.post('/api/auth/refresh');
+    const response = await this.client.post('http://localhost:8000/api/auth/refresh');
     return response.data;
   }
 
   // User endpoints
   async getProfile() {
-    const response = await this.client.get('/api/users/me');
+    const response = await this.client.get('http://localhost:8000/api/users/me');
     return response.data;
   }
 
@@ -80,12 +80,12 @@ class ApiClient {
     timezone?: string;
     preferences?: any;
   }) {
-    const response = await this.client.patch('/api/users/me', userData);
+    const response = await this.client.patch('http://localhost:8000/api/users/me', userData);
     return response.data;
   }
 
   async changePassword(currentPassword: string, newPassword: string) {
-    const response = await this.client.post('/api/users/change-password', {
+    const response = await this.client.post('http://localhost:8000/api/users/change-password', {
       currentPassword,
       newPassword,
     });
@@ -100,12 +100,12 @@ class ApiClient {
     tags?: string[];
     moodRange?: { min: number; max: number };
   }): Promise<ApiResponse<PaginatedEntries>> {
-    const response = await this.client.get('/api/entries', { params });
+    const response = await this.client.get('http://localhost:8000/api/entries', { params });
     return response.data;
   }
 
   async getEntry(id: string): Promise<ApiResponse> {
-    const response = await this.client.get(`/api/entries/${id}`);
+    const response = await this.client.get(`http://localhost:8000/api/entries/${id}`);
     return response.data;
   }
 
@@ -131,7 +131,7 @@ class ApiClient {
       formData.append('isPublic', data.isPublic.toString());
     }
 
-    const response = await this.client.post('/api/entries', formData, {
+    const response = await this.client.post('http://localhost:8000/api/entries', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -144,18 +144,18 @@ class ApiClient {
     tags?: string[];
     isPublic?: boolean;
   }) {
-    const response = await this.client.patch(`/api/entries/${id}`, data);
+    const response = await this.client.patch(`http://localhost:8000/api/entries/${id}`, data);
     return response.data;
   }
 
   async deleteEntry(id: string) {
-    const response = await this.client.delete(`/api/entries/${id}`);
+    const response = await this.client.delete(`http://localhost:8000/api/entries/${id}`);
     return response.data;
   }
 
   // Mood analysis
   async analyzeMood(text: string): Promise<ApiResponse> {
-    const response = await this.client.post('/api/analysis/mood', { text });
+    const response = await this.client.post('http://localhost:8000/api/analysis/mood', { text });
     return response.data;
   }
 
@@ -163,7 +163,7 @@ class ApiClient {
     timeRange?: 'week' | 'month' | 'year' | 'all';
     metrics?: string[];
   }): Promise<ApiResponse> {
-    const response = await this.client.get('/api/analysis/trends', { params });
+    const response = await this.client.get('http://localhost:8000/api/analysis/trends', { params });
     return response.data;
   }
 
@@ -173,23 +173,23 @@ class ApiClient {
     limit?: number;
     type?: string;
   }): Promise<ApiResponse> {
-    const response = await this.client.get('/api/insights', { params });
+    const response = await this.client.get('http://localhost:8000/api/insights', { params });
     return response.data;
   }
 
   async getInsight(id: string): Promise<ApiResponse> {
-    const response = await this.client.get(`/api/insights/${id}`);
+    const response = await this.client.get(`http://localhost:8000/api/insights/${id}`);
     return response.data;
   }
 
   async dismissInsight(id: string) {
-    const response = await this.client.post(`/api/insights/${id}/dismiss`);
+    const response = await this.client.post(`http://localhost:8000/api/insights/${id}/dismiss`);
     return response.data;
   }
 
   // Dashboard
   async getDashboardStats(): Promise<ApiResponse> {
-    const response = await this.client.get('/api/dashboard/stats');
+    const response = await this.client.get('http://localhost:8000/api/dashboard/stats');
     return response.data;
   }
 
@@ -201,7 +201,7 @@ class ApiClient {
     includeInsights?: boolean;
     anonymize?: boolean;
   }) {
-    const response = await this.client.post('/api/export', data, {
+    const response = await this.client.post('http://localhost:8000/api/export', data, {
       responseType: 'blob',
     });
     return response.data;
@@ -214,7 +214,7 @@ class ApiClient {
     tags?: string[];
     emotions?: string[];
   }): Promise<ApiResponse> {
-    const response = await this.client.post('/api/search', {
+    const response = await this.client.post('http://localhost:8000/api/search', {
       query,
       filters,
     });
@@ -226,7 +226,7 @@ class ApiClient {
     const formData = new FormData();
     formData.append('audio', audio, 'recording.webm');
 
-    const response = await this.client.post('/api/transcribe', formData, {
+    const response = await axios.post('http://localhost:8000/api/transcribe', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

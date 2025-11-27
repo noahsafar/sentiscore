@@ -73,7 +73,7 @@ export default function InsightCard({
   return (
     <div
       onClick={() => onViewDetails(insight.id)}
-      className="group cursor-pointer glass rounded-lg p-4 hover:shadow-md transition-all duration-200"
+      className="group cursor-pointer glass rounded-lg p-4 hover:shadow-md transition-all duration-200 relative"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center space-x-2">

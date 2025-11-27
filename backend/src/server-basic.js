@@ -144,34 +144,131 @@ const server = http.createServer((req, res) => {
     }));
   }
   else if (path === '/api/entries' && req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      const { transcript, tags = [] } = JSON.parse(body);
+    // Parse multipart form data
+    if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+      const chunks = [];
+      req.on('data', chunk => chunks.push(chunk));
+      req.on('end', () => {
+        try {
+          const body = Buffer.concat(chunks).toString();
+          const boundary = req.headers['content-type'].split('boundary=')[1];
+          const parts = body.split('--' + boundary);
 
-      const newEntry = {
-        id: randomBytes(16).toString('hex'),
-        date: new Date().toISOString(),
-        transcript,
-        moodScores: {
-          stress: Math.round(Math.random() * 10 * 10) / 10,
-          happiness: Math.round(Math.random() * 10 * 10) / 10,
-          clarity: Math.round(Math.random() * 10 * 10) / 10,
-          energy: Math.round(Math.random() * 10 * 10) / 10,
-          emotionalStability: Math.round(Math.random() * 10 * 10) / 10,
-          overall: Math.round(Math.random() * 10 * 10) / 10
-        },
-        tags
-      };
+          let transcript = '';
+          let date = new Date().toISOString();
 
-      res.writeHead(201);
-      res.end(JSON.stringify({
-        success: true,
-        data: newEntry
-      }));
-    });
+          parts.forEach(part => {
+            const trimmed = part.trim();
+            if (!trimmed || trimmed === '--') return;
+
+            if (trimmed.includes('name="transcript"')) {
+              const lines = trimmed.split('\r\n');
+              // Find the content after the headers
+              const headerEnd = trimmed.indexOf('\r\n\r\n');
+              if (headerEnd !== -1) {
+                transcript = trimmed.substring(headerEnd + 4).replace(/\r\n$/, '') || '';
+              }
+            }
+            if (trimmed.includes('name="date"')) {
+              const lines = trimmed.split('\r\n');
+              const headerEnd = trimmed.indexOf('\r\n\r\n');
+              if (headerEnd !== -1) {
+                date = trimmed.substring(headerEnd + 4).replace(/\r\n$/, '') || date;
+              }
+            }
+          });
+
+          // Create new entry with the transcription
+          const newEntry = {
+            id: randomBytes(16).toString('hex'),
+            userId: '1',
+            date: date,
+            transcript: transcript || "Daily journal entry recorded",
+            audioUrl: null,
+            duration: 0,
+            moodScores: {
+              stress: 5.0,
+              happiness: 7.0,
+              clarity: 6.0,
+              energy: 6.0,
+              emotionalStability: 6.5,
+              overall: 6.1
+            },
+            tags: [],
+            isPublic: false,
+            createdAt: date,
+            updatedAt: date
+          };
+
+          // Add to sample entries array (in production, use a real database)
+          sampleEntries.unshift(newEntry);
+
+          console.log('✅ New entry saved:', newEntry.id);
+          console.log('Transcript:', transcript.substring(0, 100) + '...');
+
+          res.writeHead(201, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            data: newEntry
+          }));
+        } catch (error) {
+          console.error('Error parsing form data:', error);
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: { message: 'Failed to parse form data' }
+          }));
+        }
+      });
+    } else {
+      // Handle JSON data (fallback)
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        try {
+          const { transcript, tags = [] } = JSON.parse(body);
+
+          const newEntry = {
+            id: randomBytes(16).toString('hex'),
+            userId: '1',
+            date: new Date().toISOString(),
+            transcript,
+            audioUrl: null,
+            duration: 0,
+            moodScores: {
+              stress: 5.0,
+              happiness: 7.0,
+              clarity: 6.0,
+              energy: 6.0,
+              emotionalStability: 6.5,
+              overall: 6.1
+            },
+            tags,
+            isPublic: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+
+          sampleEntries.unshift(newEntry);
+          console.log('✅ New entry saved (JSON):', newEntry.id);
+
+          res.writeHead(201, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            data: newEntry
+          }));
+        } catch (error) {
+          console.error('Error parsing JSON:', error);
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: { message: 'Failed to parse JSON' }
+          }));
+        }
+      });
+    }
   }
   else if (path === '/api/dashboard/stats' && req.method === 'GET') {
     res.writeHead(200);

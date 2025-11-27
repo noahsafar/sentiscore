@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { MicrophoneIcon, StopIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { MicrophoneIcon, StopIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { useAppContext, appActions } from '@/store/AppContext';
 import { formatDuration } from '@/utils/helpers';
@@ -9,18 +9,24 @@ interface VoiceRecorderProps {
   onRecordingComplete: (recording: Blob, transcript: string) => void;
   maxDuration?: number; // seconds
   disabled?: boolean;
+  hasEntryToday?: boolean;
+  onReplaceTodayEntry?: () => void;
 }
 
 export default function VoiceRecorder({
   onRecordingComplete,
   maxDuration = 300, // 5 minutes default
-  disabled = false
+  disabled = false,
+  hasEntryToday = false,
+  onReplaceTodayEntry
 }: VoiceRecorderProps) {
   const { state, dispatch } = useAppContext();
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [finalTranscript, setFinalTranscript] = useState('');
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -28,6 +34,8 @@ export default function VoiceRecorder({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const currentTranscriptRef = useRef<string>(''); // Store latest transcript
 
   // Clean up on unmount
   useEffect(() => {
@@ -75,49 +83,78 @@ export default function VoiceRecorder({
   const startRecording = async () => {
     if (disabled) return;
 
-    // Debug logging
-    console.log('=== Microphone Debug Info ===');
-    console.log('navigator:', typeof navigator);
-    console.log('navigator.mediaDevices:', navigator.mediaDevices);
-    console.log('navigator.mediaDevices?.getUserMedia:', navigator.mediaDevices?.getUserMedia);
-    console.log('isSecureContext:', window.isSecureContext);
-    console.log('location.protocol:', window.location.protocol);
-    console.log('location.hostname:', window.location.hostname);
-    console.log('User Agent:', navigator.userAgent);
-    console.log('==========================');
+    // Check for speech recognition support
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast.error('Speech recognition not supported in this browser. Try Chrome or Edge.');
+      return;
+    }
 
     // Safari compatibility fix
     let getUserMedia = null;
-
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
     } else if ((navigator as any).getUserMedia) {
-      // Older Safari
-      console.log('Using legacy getUserMedia for Safari');
       getUserMedia = (navigator as any).getUserMedia.bind(navigator);
     } else if ((navigator as any).webkitGetUserMedia) {
-      // Even older Safari
-      console.log('Using webkitGetUserMedia for Safari');
       getUserMedia = (navigator as any).webkitGetUserMedia.bind(navigator);
     }
 
     if (!getUserMedia) {
       toast.error('Microphone API not supported in this browser. Try Chrome or Firefox.');
-      console.error('No getUserMedia implementation found');
       return;
     }
 
-    console.log('Starting to request microphone access...');
-
     try {
-      // Request microphone access with simpler constraints
-      const stream = await getUserMedia({
-        audio: true,
-      });
-
+      // Request microphone access
+      const stream = await getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Create audio context for level monitoring
+      // Setup speech recognition
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      recognition.onresult = (event: any) => {
+        let interimText = '';
+        let finalText = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalText += transcript + ' ';
+          } else {
+            interimText += transcript;
+          }
+        }
+
+        console.log('🎤 Speech result:', { interimText, finalText });
+
+        // Update both React state AND persistent ref
+        setInterimTranscript(interimText);
+        if (finalText) {
+          setFinalTranscript(prev => {
+            const newTranscript = prev + finalText;
+            currentTranscriptRef.current = newTranscript; // Also update ref
+            console.log('📝 Updated transcript ref:', newTranscript);
+            return newTranscript;
+          });
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          toast.error('Microphone permission denied for speech recognition.');
+        } else {
+          toast.error(`Speech recognition error: ${event.error}`);
+        }
+      };
+
+      // Setup audio recording
       const audioContext = new AudioContext();
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
@@ -125,7 +162,6 @@ export default function VoiceRecorder({
       source.connect(analyser);
       analyserRef.current = analyser;
 
-      // Initialize media recorder
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : 'audio/webm';
@@ -143,41 +179,82 @@ export default function VoiceRecorder({
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
-        // Reset state
+        // Stop recognition to finalize any pending results
+        recognition.stop();
+
+        // Small delay to allow recognition to process final results
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Get final transcript from ref (most reliable)
+        const finalText = currentTranscriptRef.current || finalTranscript || interimTranscript;
+        console.log('🎤 Recording stopped. Final transcript:', finalText);
+        console.log('🎤 Final transcript length:', finalText?.length || 0);
+        console.log('📊 Ref transcript:', currentTranscriptRef.current);
+        console.log('📊 React final transcript:', finalTranscript);
+        console.log('📊 React interim transcript:', interimTranscript);
+
+        // Validate transcript before saving
+        if (!finalText || finalText.trim().length === 0) {
+          toast.error('No speech detected. Please try again.');
+
+          // Reset state AFTER validation
+          setIsRecording(false);
+          setIsPaused(false);
+          setDuration(0);
+          setAudioLevel(0);
+          setInterimTranscript('');
+          setFinalTranscript('');
+          currentTranscriptRef.current = ''; // Clear the ref too
+
+          // Stop all tracks and cleanup
+          stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+          streamRef.current = null;
+          analyserRef.current = null;
+          await audioContext.close();
+
+          dispatch(appActions.setRecordingState('idle'));
+          return;
+        }
+
+        // Stop all tracks and cleanup
+        stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+        streamRef.current = null;
+        analyserRef.current = null;
+        await audioContext.close();
+
+        // Complete with transcript BEFORE clearing states
+        console.log('📝 Sending transcript to parent:', finalText.trim());
+        onRecordingComplete(audioBlob, finalText.trim());
+
+        // Reset state AFTER sending to parent
         setIsRecording(false);
         setIsPaused(false);
         setDuration(0);
         setAudioLevel(0);
+        setInterimTranscript('');
+        setFinalTranscript('');
+        currentTranscriptRef.current = ''; // Clear the ref too
 
-        // Stop all tracks
-        stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
-        streamRef.current = null;
-        analyserRef.current = null;
-
-        // Close audio context
-        await audioContext.close();
-
-        // Transcribe the audio
-        dispatch(appActions.setRecordingState('processing'));
-        await transcribeAudio(audioBlob);
+        dispatch(appActions.setRecordingState('idle'));
+        toast.success('Recording saved successfully!');
       };
 
-      // Start recording
-      mediaRecorder.start(100); // Collect data every 100ms
+      // Start both recording and recognition
+      recognition.start();
+      mediaRecorder.start(100);
       setIsRecording(true);
       dispatch(appActions.setRecordingState('recording'));
-
-      // Start monitoring audio level
       updateAudioLevel();
 
-      toast.success('Recording started... Speak now!', {
-        duration: 2000,
-      });
+      const message = hasEntryToday
+        ? 'Recording new entry for today (will replace previous one)...'
+        : 'Recording started... Speak now!';
+
+      toast.success(message, { duration: 3000 });
     } catch (error) {
       console.error('Failed to start recording:', error);
 
       let errorMessage = 'Failed to access microphone. Please check your permissions.';
-
       if (error instanceof Error) {
         if (error.name === 'NotAllowedError') {
           errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
@@ -185,10 +262,6 @@ export default function VoiceRecorder({
           errorMessage = 'No microphone found. Please connect a microphone and try again.';
         } else if (error.name === 'NotReadableError') {
           errorMessage = 'Microphone is already in use by another application.';
-        } else if (error.name === 'NotSupportedError') {
-          errorMessage = 'Microphone is not supported by your browser.';
-        } else {
-          errorMessage = `Error: ${error.message}`;
         }
       }
 
@@ -221,7 +294,18 @@ export default function VoiceRecorder({
   };
 
   const cancelRecording = () => {
-    stopRecording();
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+    }
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
     audioChunksRef.current = [];
 
     if (streamRef.current) {
@@ -229,41 +313,15 @@ export default function VoiceRecorder({
       streamRef.current = null;
     }
 
+    // Reset transcript states
+    setInterimTranscript('');
+    setFinalTranscript('');
+    currentTranscriptRef.current = '';
+
     dispatch(appActions.setRecordingState('idle'));
     toast('Recording cancelled', {
       icon: '🚫',
     });
-  };
-
-  const transcribeAudio = async (audioBlob: Blob) => {
-    try {
-      // Use apiClient to send audio to backend for transcription
-      const response = await apiClient.transcribeAudio(audioBlob);
-      const transcript = response.data.text || 'Transcription not available';
-
-      onRecordingComplete(audioBlob, transcript);
-      toast.success('Transcription complete!', {
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('Transcription error:', error);
-
-      // Always try to get the transcribed text, even if there's an error
-      const manualText = prompt(
-        'Automatic transcription failed. Please enter your journal entry manually:',
-        ''
-      );
-
-      if (manualText) {
-        onRecordingComplete(audioBlob, manualText);
-      } else {
-        // If user cancels, still save with a generic message
-        onRecordingComplete(audioBlob, "Voice recording saved");
-        toast.success('Recording saved successfully');
-      }
-    } finally {
-      dispatch(appActions.setRecordingState('idle'));
-    }
   };
 
   // Calculate visual representation of audio level
@@ -272,39 +330,57 @@ export default function VoiceRecorder({
   return (
     <div className="w-full max-w-2xl mx-auto">
       {!isRecording ? (
-        <button
-          onClick={startRecording}
-          disabled={disabled || state.recordingState === 'processing'}
-          className="
-            w-full py-6 px-8 rounded-2xl border-2 border-dashed
-            border-primary-300 dark:border-primary-600
-            hover:border-primary-400 dark:hover:border-primary-500
-            hover:bg-primary-50 dark:hover:bg-primary-900/20
-            transition-all duration-200 group
-            disabled:opacity-50 disabled:cursor-not-allowed
-          "
-        >
-          <div className="flex flex-col items-center space-y-3">
-            <div className="
-              p-4 rounded-full bg-primary-100 dark:bg-primary-900/50
-              group-hover:bg-primary-200 dark:group-hover:bg-primary-900/70
-              transition-colors duration-200
-            ">
-              <MicrophoneIcon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+        <div className="space-y-4">
+          {hasEntryToday ? (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <div className="flex items-center space-x-2">
+                <ArrowPathIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  You've already recorded today. Recording again will replace today's entry.
+                </p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-lg font-medium text-gray-900 dark:text-white">
-                {state.recordingState === 'processing'
-                  ? 'Processing...'
-                  : 'Tap to start recording'
-                }
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Speak freely for up to {formatDuration(maxDuration)}
-              </p>
+          ) : null}
+
+          <button
+            onClick={startRecording}
+            disabled={disabled || state.recordingState === 'processing'}
+            className="
+              w-full py-6 px-8 rounded-2xl border-2 border-dashed
+              border-primary-300 dark:border-primary-600
+              hover:border-primary-400 dark:hover:border-primary-500
+              hover:bg-primary-50 dark:hover:bg-primary-900/20
+              transition-all duration-200 group
+              disabled:opacity-50 disabled:cursor-not-allowed
+            "
+          >
+            <div className="flex flex-col items-center space-y-3">
+              <div className="
+                p-4 rounded-full bg-primary-100 dark:bg-primary-900/50
+                group-hover:bg-primary-200 dark:group-hover:bg-primary-900/70
+                transition-colors duration-200
+              ">
+                <MicrophoneIcon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-medium text-gray-900 dark:text-white">
+                  {state.recordingState === 'processing'
+                    ? 'Processing...'
+                    : hasEntryToday
+                    ? 'Replace Today\'s Entry'
+                    : 'Tap to start recording'
+                  }
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {hasEntryToday
+                    ? `Record a new entry for today (current will be replaced)`
+                    : `Speak freely for up to ${formatDuration(maxDuration)}`
+                  }
+                </p>
+              </div>
             </div>
-          </div>
-        </button>
+          </button>
+        </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
           <div className="flex items-center justify-between mb-6">
@@ -329,6 +405,19 @@ export default function VoiceRecorder({
               />
             ))}
           </div>
+
+          {/* Real-time Transcript */}
+          {(finalTranscript || interimTranscript) && (
+            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-4">
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                Live Transcript:
+              </div>
+              <div className="text-gray-900 dark:text-white min-h-[60px]">
+                <span className="font-medium">{finalTranscript}</span>
+                <span className="text-gray-500 italic">{interimTranscript}</span>
+              </div>
+            </div>
+          )}
 
           {/* Control Buttons */}
           <div className="flex items-center justify-center space-x-4">

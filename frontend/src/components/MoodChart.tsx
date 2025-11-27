@@ -51,7 +51,13 @@ export default function MoodChart({
 
   // Prepare chart data
   const chartData = useMemo(() => {
-    const sortedEntries = [...filteredEntries].sort(
+    // Filter out entries with invalid dates and sort the rest
+    const validEntries = filteredEntries.filter(entry => {
+      const date = new Date(entry.date);
+      return !isNaN(date.getTime());
+    });
+
+    const sortedEntries = [...validEntries].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 

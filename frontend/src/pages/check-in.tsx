@@ -21,7 +21,7 @@ export default function CheckIn() {
       formData.append('audio', recording);
       formData.append('transcript', transcript);
 
-      const response = await fetch('/api/analyze', {
+      const response = await fetch('http://localhost:8000/api/analyze', {
         method: 'POST',
         body: formData,
       });
@@ -31,7 +31,7 @@ export default function CheckIn() {
         setMoodScores(data.moodScores);
 
         // Save the entry
-        await fetch('/api/entries', {
+        await fetch('http://localhost:8000/api/entries', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

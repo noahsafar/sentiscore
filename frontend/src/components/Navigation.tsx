@@ -39,7 +39,7 @@ export default function Navigation({ mobile = false, onClose }: NavigationProps)
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('http://localhost:8000/api/auth/logout', { method: 'POST' });
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       dispatch({ type: 'SET_USER', payload: null });
@@ -87,13 +87,23 @@ export default function Navigation({ mobile = false, onClose }: NavigationProps)
     <div className="flex-1 flex flex-col">
       {/* Logo */}
       <div className="flex items-center flex-shrink-0 px-4">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="h-8 w-8 bg-primary-500 rounded-lg flex items-center justify-center">
-            <MicrophoneIcon className="h-5 w-5 text-white" />
+        <Link href="/" className="flex items-center space-x-3">
+          <div className="relative">
+            <div className="h-10 w-10 bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-cyan-400 rounded-full animate-pulse"></div>
           </div>
-          <span className="text-xl font-bold text-gray-900 dark:text-white">
-            Mood Journal
-          </span>
+          <div className="flex flex-col">
+            <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 bg-clip-text text-transparent">
+              SentiScore
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 -mt-1">
+              Track your emotional journey
+            </span>
+          </div>
         </Link>
       </div>
 
@@ -105,7 +115,7 @@ export default function Navigation({ mobile = false, onClose }: NavigationProps)
       </div>
 
       {/* Secondary Navigation */}
-      <div className="px-2 space-y-1 border-t border-gray-200 dark:border-gray-700 pt-4">
+      <div className="px-2 space-y-1 border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
         {secondaryNavigation.map((item) => (
           <NavItem key={item.name} item={item} />
         ))}
@@ -129,7 +139,7 @@ export default function Navigation({ mobile = false, onClose }: NavigationProps)
 
       {/* User Info */}
       {state.user && (
-        <div className="flex-shrink-0 flex border-t border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex-shrink-0 flex border-t border-gray-200 dark:border-gray-700 pt-8 px-4 pb-4">
           <div className="flex items-center space-x-3">
             <div className="flex-shrink-0">
               <div className="h-8 w-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
