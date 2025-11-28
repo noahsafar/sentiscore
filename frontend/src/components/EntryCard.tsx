@@ -244,7 +244,7 @@ export default function EntryCard({
       )}
 
       {/* Transcript Dropdown */}
-      {entry.rawTranscript && (
+      {(entry.rawTranscript || entry.audioUrl) && (
         <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setShowTranscript(!showTranscript)}
@@ -269,7 +269,7 @@ export default function EntryCard({
                 Original Recording Transcript
               </h4>
               <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-                {entry.rawTranscript}
+                {entry.rawTranscript || entry.transcript || 'No transcript available'}
               </p>
             </div>
           )}

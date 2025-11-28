@@ -52,11 +52,24 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_USER':
       return { ...state, user: action.payload };
     case 'SET_ENTRIES':
-      return { ...state, entries: action.payload };
+      return {
+        ...state,
+        entries: action.payload.map(entry => ({
+          ...entry,
+          date: new Date(entry.date),
+          createdAt: new Date(entry.createdAt),
+          updatedAt: new Date(entry.updatedAt)
+        }))
+      };
     case 'ADD_ENTRY':
       return {
         ...state,
-        entries: [action.payload, ...state.entries],
+        entries: [{
+          ...action.payload,
+          date: new Date(action.payload.date),
+          createdAt: new Date(action.payload.createdAt),
+          updatedAt: new Date(action.payload.updatedAt)
+        }, ...state.entries],
         lastUpdate: new Date(),
       };
     case 'UPDATE_ENTRY':
