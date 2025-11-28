@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import MoodChart from '@/components/MoodChart';
+import QuickStats from '@/components/QuickStats';
 import { useAppContext } from '@/store/AppContext';
-import { ChartBarIcon, CalendarIcon, FireIcon, FaceSmileIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
 export default function Analytics() {
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year' | 'all'>('month');
   const [chartData, setChartData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -17,9 +18,24 @@ export default function Analytics() {
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/analytics?range=${timeRange}`);
-      const { data } = await response.json();
-      setChartData(data);
+
+      // Load entries data
+      const entriesResponse = await fetch('http://localhost:8000/api/entries?limit=100');
+      if (entriesResponse.ok) {
+        const { data } = await entriesResponse.json();
+        // Update the global state with entries
+        if (typeof window !== 'undefined') {
+          const event = new CustomEvent('updateEntries', { detail: data.entries || [] });
+          window.dispatchEvent(event);
+        }
+      }
+
+      // Load dashboard stats
+      const statsResponse = await fetch('http://localhost:8000/api/dashboard/stats');
+      if (statsResponse.ok) {
+        const { data } = await statsResponse.json();
+        setChartData(data);
+      }
     } catch (error) {
       console.error('Failed to load analytics:', error);
     } finally {
@@ -66,66 +82,14 @@ export default function Analytics() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="glass rounded-xl p-6 hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Current Streak
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {chartData?.currentStreak || 0}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">days</p>
-                </div>
-                <FireIcon className="h-8 w-8 text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-
-            <div className="glass rounded-xl p-6 hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Total Entries
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {chartData?.totalEntries || 0}
-                  </p>
-                </div>
-                <CalendarIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-
-            <div className="glass rounded-xl p-6 hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Average Mood
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {chartData?.averageMood?.overall ? chartData.averageMood.overall.toFixed(1) : '0.0'}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">/10</p>
-                </div>
-                <FaceSmileIcon className="h-8 w-8 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-
-            <div className="glass rounded-xl p-6 hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    This Month
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {chartData?.averageMood?.thisMonth ? chartData.averageMood.thisMonth.toFixed(1) : '0.0'}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">/10</p>
-                </div>
-                <ChartBarIcon className="h-8 w-8 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-          </div>
+          {chartData && (
+            <QuickStats
+              currentStreak={chartData.currentStreak}
+              longestStreak={chartData.longestStreak}
+              totalEntries={chartData.totalEntries}
+              averageMood={chartData.averageMood}
+            />
+          )}
         </div>
 
         {loading ? (
@@ -140,7 +104,7 @@ export default function Analytics() {
                 Mood Trends
               </h2>
               <MoodChart
-                entries={chartData?.entries || []}
+                entries={state.entries || []}
                 timeRange={timeRange}
                 onTimeRangeChange={setTimeRange}
                 showAverage={true}

@@ -18,7 +18,7 @@ interface QuickStatsProps {
   };
 }
 
-export default function QuickStats({
+const QuickStats = React.memo(function QuickStats({
   currentStreak,
   longestStreak,
   totalEntries,
@@ -56,7 +56,8 @@ export default function QuickStats({
       icon: FaceSmileIcon,
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-100 dark:bg-green-900/20',
-      trend: averageMood.thisMonth > averageMood.lastMonth ? 'up' : 'down',
+      trend: averageMood.thisMonth > averageMood.lastMonth ? 'up' :
+              averageMood.thisMonth < averageMood.lastMonth ? 'down' : 'neutral',
       trendValue: Math.abs(averageMood.thisMonth - averageMood.lastMonth).toFixed(1),
     },
   ];
@@ -95,34 +96,51 @@ export default function QuickStats({
                 </div>
                 {stat.trend && (
                   <div className="flex items-center mt-2">
-                    <svg
-                      className={`h-4 w-4 mr-1 ${
-                        stat.trend === 'up' ? 'text-green-500' : 'text-red-500'
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      {stat.trend === 'up' ? (
+                    {stat.trend === 'neutral' ? (
+                      <svg
+                        className="h-4 w-4 mr-1 text-gray-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                          d="M5 12h14"
                         />
-                      ) : (
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"
-                        />
-                      )}
-                    </svg>
+                      </svg>
+                    ) : (
+                      <svg
+                        className={`h-4 w-4 mr-1 ${
+                          stat.trend === 'up' ? 'text-green-500' : 'text-red-500'
+                        }`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        {stat.trend === 'up' ? (
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                          />
+                        ) : (
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"
+                          />
+                        )}
+                      </svg>
+                    )}
                     <p className={`text-xs ${
+                      stat.trend === 'neutral' ? 'text-gray-600 dark:text-gray-400' :
                       stat.trend === 'up' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
-                      {stat.trend === 'up' ? '+' : '-'}{stat.trendValue} from last month
+                      {stat.trend === 'neutral' ? 'No change' : `${stat.trend === 'up' ? '+' : '-'}${stat.trendValue} from last month`}
                     </p>
                   </div>
                 )}
@@ -195,7 +213,7 @@ export default function QuickStats({
             {stat.name === 'Total Entries' && numericValue >= 30 && (
               <div className="mt-3">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                  📊 Committed!
+                  Committed!
                 </span>
               </div>
             )}
@@ -204,4 +222,6 @@ export default function QuickStats({
       })}
     </div>
   );
-}
+});
+
+export default QuickStats;
