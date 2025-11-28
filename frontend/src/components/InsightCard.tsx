@@ -9,6 +9,7 @@ import {
   ChevronRightIcon,
   SparklesIcon,
   ChartBarIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline';
 import { Insight, InsightType } from '@/types';
 

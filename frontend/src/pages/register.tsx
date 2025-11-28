@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
+import { apiClient } from '@/utils/api';
 
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -33,24 +34,12 @@ export default function Register() {
     try {
       setIsLoading(true);
 
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          password: data.password,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }),
+      const result = await apiClient.register({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error?.message || 'Registration failed');
-      }
 
       // Save tokens
       localStorage.setItem('authToken', result.data.accessToken);

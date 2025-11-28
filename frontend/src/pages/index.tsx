@@ -94,12 +94,15 @@ export default function Dashboard() {
   };
 
   const handleVoiceRecording = async (recording: Blob, transcript: string, voiceFeatures?: any) => {
-    console.log('🎤 handleVoiceRecording called with transcript:', transcript);
+    console.log('🎤 handleVoiceRecording called with audio blob:', recording.size);
     try {
       dispatch(appActions.setRecordingState('processing'));
 
-      // Create new journal entry with voice analysis (no replacement logic)
-      const newEntry = await saveNewEntry(transcript, recording, voiceFeatures);
+      // Create new journal entry with real transcript and voice analysis
+      const newEntry = await saveNewEntry(transcript, recording, voiceFeatures, {
+        // Real transcription done in browser, no need for AI transcription
+        needsTranscription: false
+      });
 
       // Update the app state
       dispatch(appActions.addEntry(newEntry));

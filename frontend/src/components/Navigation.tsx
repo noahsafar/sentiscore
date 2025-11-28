@@ -60,7 +60,7 @@ export default function Navigation({ mobile = false, onClose }: NavigationProps)
 
     const Component = item.action ? 'button' : Link;
     const props = item.action
-      ? { onClick: handleClick }
+      ? { type: 'button' as const, onClick: handleClick }
       : { href: item.href, onClick: handleClick };
 
     return (
