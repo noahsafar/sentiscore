@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { useAppContext } from '@/store/AppContext';
+import { appActions } from '@/store/AppContext';
 import {
   CogIcon,
   BellIcon,
@@ -12,9 +13,9 @@ import {
 import { toast } from 'react-hot-toast';
 
 export default function Settings() {
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const [preferences, setPreferences] = useState({
-    theme: 'light' as 'light' | 'dark' | 'auto',
+    theme: 'dark' as 'light' | 'dark' | 'auto',
     language: 'en',
     notifications: {
       dailyReminder: true,
@@ -34,7 +35,7 @@ export default function Settings() {
   useEffect(() => {
     if (state.user && state.user.preferences) {
       setPreferences({
-        theme: state.user.preferences.theme || 'light',
+        theme: state.user.preferences.theme || 'dark',
         language: state.user.preferences.language || 'en',
         notifications: {
           dailyReminder: state.user.preferences.notifications?.dailyReminder ?? true,
@@ -52,6 +53,13 @@ export default function Settings() {
       });
     }
   }, [state.user]);
+
+  // Sync theme with global state
+  useEffect(() => {
+    if (state.theme !== preferences.theme) {
+      setPreferences(prev => ({ ...prev, theme: state.theme }));
+    }
+  }, [state.theme]);
 
   const handleSavePreferences = async () => {
     try {
@@ -138,12 +146,15 @@ export default function Settings() {
                 </label>
                 <select
                   value={preferences.theme}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const newTheme = e.target.value as 'light' | 'dark' | 'auto';
                     setPreferences({
                       ...preferences,
-                      theme: e.target.value as 'light' | 'dark' | 'auto',
-                    })
-                  }
+                      theme: newTheme,
+                    });
+                    // Immediately update global theme state
+                    dispatch(appActions.setTheme(newTheme));
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="light">Light</option>

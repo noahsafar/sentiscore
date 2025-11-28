@@ -40,7 +40,7 @@ const initialState: AppState = {
   isLoading: false,
   error: null,
   currentModal: null,
-  theme: 'auto',
+  theme: 'dark',
   selectedEntry: null,
   selectedInsight: null,
   recordingState: 'idle',
@@ -130,13 +130,18 @@ const AppContext = createContext<{
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Load saved data from localStorage on mount
+  // Initialize theme immediately on mount
   useEffect(() => {
     // Check if we're in the browser
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('theme') as Theme;
       if (savedTheme) {
         dispatch({ type: 'SET_THEME', payload: savedTheme });
+      } else {
+        // No saved theme, use default and apply it immediately
+        const root = document.documentElement;
+        root.classList.add('dark');
+        dispatch({ type: 'SET_THEME', payload: 'dark' });
       }
 
       const savedUser = localStorage.getItem('user');

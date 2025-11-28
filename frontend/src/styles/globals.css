@@ -200,44 +200,43 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  html,
-  body {
-    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
-    color: #f3f4f6;
-    min-height: 100vh;
-  }
+/* Dark theme styles */
+.dark,
+.dark html,
+.dark body {
+  background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%) !important;
+  color: #f3f4f6;
+  min-height: 100vh;
+}
 
-  /* Dark mode overscroll background colors */
-  html {
-    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
-    min-height: 100vh;
-  }
+/* Dark mode overscroll background colors */
+.dark html {
+  background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%) !important;
+  min-height: 100vh;
+}
 
-  body {
-    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
-  }
+.dark body {
+  background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%) !important;
+}
 
-  /* Dark mode root background */
-  :root {
-    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
-  }
+/* Dark mode root background */
+.dark :root {
+  background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%) !important;
+}
 
-  /* Dark mode cover overscroll areas */
-  body::before,
-  body::after {
-    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
-  }
+/* Dark mode cover overscroll areas */
+.dark body::before,
+.dark body::after {
+  background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%) !important;
+}
 
-  /* Ensure document canvas has our background in dark mode */
-  #root {
-    background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%);
-    min-height: 100vh;
-  }
+/* Ensure document canvas has our background in dark mode */
+.dark #root {
+  background: linear-gradient(135deg, #1e3a8a 0%, #581c87 100%) !important;
+  min-height: 100vh;
+}
 
-  .glass {
-    background: rgba(17, 24, 39, 0.95);
-    border: 1px solid rgba(75, 85, 99, 0.2);
-  }
+.dark .glass {
+  background: rgba(17, 24, 39, 0.95) !important;
+  border: 1px solid rgba(75, 85, 99, 0.2) !important;
 }
