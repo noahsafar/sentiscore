@@ -783,6 +783,7 @@ const server = http.createServer((req, res) => {
               userId: userId, // Use IP-based ID instead of hardcoded demo-user
               date: date,
               transcript: displaySummary || "Daily journal entry recorded",
+              rawTranscript: realTranscript || transcript || "", // Store original transcript
               audioUrl: audioBuffer ? `/api/audio/${randomBytes(16).toString('hex')}.webm` : null,
               duration: audioBuffer ? Math.floor(audioBuffer.length / 8000) : 0, // Rough estimate
               moodScores: {

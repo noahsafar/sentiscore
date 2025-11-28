@@ -10,6 +10,8 @@ import {
   ShareIcon,
   EyeIcon,
   EyeSlashIcon,
+  ChevronDownIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { Entry } from '@/types';
 import { getMoodEmoji, calculateMoodColor, truncateText } from '@/utils/helpers';
@@ -32,6 +34,7 @@ export default function EntryCard({
   const [isPlaying, setIsPlaying] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showFullText, setShowFullText] = useState(showFullTranscript);
+  const [showTranscript, setShowTranscript] = useState(false);
 
   const togglePlayPause = () => {
     if (!entry.audioUrl) return;
@@ -240,24 +243,36 @@ export default function EntryCard({
         </div>
       )}
 
-      {/* Audio Controls */}
-      {entry.audioUrl && (
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+      {/* Transcript Dropdown */}
+      {entry.rawTranscript && (
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
           <button
-            onClick={togglePlayPause}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-primary-100 dark:bg-primary-900/30 hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors"
+            onClick={() => setShowTranscript(!showTranscript)}
+            className="flex items-center justify-between w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
-            {isPlaying ? (
-              <PauseIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-            ) : (
-              <PlayIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-            )}
-            <span className="text-sm font-medium text-primary-600 dark:text-primary-400">
-              {isPlaying ? 'Pause' : 'Play'} Recording
-            </span>
+            <div className="flex items-center space-x-2">
+              <DocumentTextIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Show Transcript
+              </span>
+            </div>
+            <ChevronDownIcon
+              className={`h-5 w-5 text-gray-500 transition-transform ${
+                showTranscript ? 'rotate-180' : ''
+              }`}
+            />
           </button>
 
-          <SpeakerWaveIcon className="h-5 w-5 text-gray-400" />
+          {showTranscript && (
+            <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Original Recording Transcript
+              </h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                {entry.rawTranscript}
+              </p>
+            </div>
+          )}
         </div>
       )}
 

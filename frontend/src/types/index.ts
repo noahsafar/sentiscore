@@ -38,6 +38,7 @@ export interface Entry {
   userId: string;
   date: Date;
   transcript: string;
+  rawTranscript?: string; // Original transcript before AI summary
   audioUrl?: string;
   duration: number; // seconds
   moodScores: MoodScores;
