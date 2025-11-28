@@ -5,8 +5,17 @@ import { useAppContext, appActions } from '@/store/AppContext';
 import { formatDuration } from '@/utils/helpers';
 import { apiClient } from '@/utils/api';
 
+interface VoiceFeatures {
+  averagePitch: number;
+  pitchVariation: number;
+  volumeVariation: number;
+  speakingRate: number;
+  pauses: number;
+  energy: number;
+}
+
 interface VoiceRecorderProps {
-  onRecordingComplete: (recording: Blob, transcript: string) => void;
+  onRecordingComplete: (recording: Blob, transcript: string, voiceFeatures?: VoiceFeatures) => void;
   maxDuration?: number; // seconds
   disabled?: boolean;
   hasEntryToday?: boolean;
@@ -36,6 +45,19 @@ export default function VoiceRecorder({
   const animationFrameRef = useRef<number | null>(null);
   const recognitionRef = useRef<any>(null);
   const currentTranscriptRef = useRef<string>(''); // Store latest transcript
+
+  // Voice analysis refs
+  const voiceFeaturesRef = useRef<VoiceFeatures>({
+    averagePitch: 0,
+    pitchVariation: 0,
+    volumeVariation: 0,
+    speakingRate: 0,
+    pauses: 0,
+    energy: 0
+  });
+  const pitchDataRef = useRef<number[]>([]);
+  const volumeDataRef = useRef<number[]>([]);
+  const lastSpeechTimeRef = useRef<number>(0);
 
   // Clean up on unmount
   useEffect(() => {
@@ -67,16 +89,67 @@ export default function VoiceRecorder({
     };
   }, [isRecording, isPaused, maxDuration]);
 
-  // Monitor audio level
-  const updateAudioLevel = useCallback(() => {
+  // Extract voice features from audio
+  const extractVoiceFeatures = useCallback(() => {
     if (analyserRef.current && isRecording && !isPaused) {
-      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-      analyserRef.current.getByteFrequencyData(dataArray);
+      const analyser = analyserRef.current;
 
-      const average = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length;
-      setAudioLevel(average / 255);
+      // Get frequency data for pitch analysis
+      const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(frequencyData);
 
-      animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
+      // Get time domain data for volume analysis
+      const timeData = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(timeData);
+
+      // Calculate average volume
+      const averageVolume = frequencyData.reduce((acc, val) => acc + val, 0) / frequencyData.length;
+      setAudioLevel(averageVolume / 255);
+
+      // Extract pitch using autocorrelation (simplified)
+      const sampleRate = analyser.context.sampleRate;
+      const bufferLength = analyser.fftSize;
+
+      // Find fundamental frequency (pitch)
+      let fundamentalFrequency = 0;
+      const correlations = new Array(bufferLength).fill(0);
+
+      for (let lag = 0; lag < bufferLength; lag++) {
+        for (let i = 0; i < bufferLength - lag; i++) {
+          correlations[lag] += (timeData[i] - 128) * (timeData[i + lag] - 128);
+        }
+      }
+
+      let maxCorrelation = 0;
+      for (let lag = 1; lag < bufferLength / 2; lag++) {
+        if (correlations[lag] > maxCorrelation) {
+          maxCorrelation = correlations[lag];
+          fundamentalFrequency = sampleRate / lag;
+        }
+      }
+
+      // Store pitch data (filter out unrealistic values)
+      if (fundamentalFrequency > 50 && fundamentalFrequency < 500) {
+        pitchDataRef.current.push(fundamentalFrequency);
+        // Keep only last 100 samples
+        if (pitchDataRef.current.length > 100) {
+          pitchDataRef.current.shift();
+        }
+      }
+
+      // Store volume data
+      volumeDataRef.current.push(averageVolume);
+      if (volumeDataRef.current.length > 100) {
+        volumeDataRef.current.shift();
+      }
+
+      // Detect pauses (low volume periods)
+      const now = Date.now();
+      if (averageVolume > 10) {
+        lastSpeechTimeRef.current = now;
+      }
+
+      animationFrameRef.current = requestAnimationFrame(extractVoiceFeatures);
     }
   }, [isRecording, isPaused]);
 
@@ -222,9 +295,56 @@ export default function VoiceRecorder({
         analyserRef.current = null;
         await audioContext.close();
 
-        // Complete with transcript BEFORE clearing states
+        // Calculate voice features from collected data
+        const calculateVoiceFeatures = (): VoiceFeatures => {
+          const pitchData = pitchDataRef.current;
+          const volumeData = volumeDataRef.current;
+
+          // Calculate average pitch
+          const averagePitch = pitchData.length > 0
+            ? pitchData.reduce((a, b) => a + b, 0) / pitchData.length
+            : 0;
+
+          // Calculate pitch variation (standard deviation)
+          const pitchVariance = pitchData.length > 0
+            ? pitchData.reduce((sum, p) => sum + Math.pow(p - averagePitch, 2), 0) / pitchData.length
+            : 0;
+          const pitchVariation = Math.sqrt(pitchVariance);
+
+          // Calculate volume variation
+          const avgVolume = volumeData.length > 0
+            ? volumeData.reduce((a, b) => a + b, 0) / volumeData.length
+            : 0;
+          const volumeVariance = volumeData.length > 0
+            ? volumeData.reduce((sum, v) => sum + Math.pow(v - avgVolume, 2), 0) / volumeData.length
+            : 0;
+          const volumeVariation = Math.sqrt(volumeVariance);
+
+          // Estimate speaking rate based on transcript length and recording duration
+          const wordsPerMinute = duration > 0 ? (finalText.trim().split(' ').length / duration) * 60 : 0;
+
+          // Count pauses (periods of silence)
+          const estimatedPauses = finalText.split(/[.!?]+/).length - 1;
+
+          // Calculate energy (normalized)
+          const energy = avgVolume / 255;
+
+          return {
+            averagePitch: Math.round(averagePitch),
+            pitchVariation: Math.round(pitchVariation),
+            volumeVariation: Math.round(volumeVariation),
+            speakingRate: Math.round(wordsPerMinute),
+            pauses: Math.max(0, estimatedPauses),
+            energy: Math.round(energy * 100) / 100
+          };
+        };
+
+        const voiceFeatures = calculateVoiceFeatures();
+        console.log('🎤 Voice features extracted:', voiceFeatures);
+
+        // Complete with transcript and voice features BEFORE clearing states
         console.log('📝 Sending transcript to parent:', finalText.trim());
-        onRecordingComplete(audioBlob, finalText.trim());
+        onRecordingComplete(audioBlob, finalText.trim(), voiceFeatures);
 
         // Reset state AFTER sending to parent
         setIsRecording(false);
@@ -239,12 +359,25 @@ export default function VoiceRecorder({
         toast.success('Recording saved successfully!');
       };
 
+      // Reset voice analysis data
+      voiceFeaturesRef.current = {
+        averagePitch: 0,
+        pitchVariation: 0,
+        volumeVariation: 0,
+        speakingRate: 0,
+        pauses: 0,
+        energy: 0
+      };
+      pitchDataRef.current = [];
+      volumeDataRef.current = [];
+      lastSpeechTimeRef.current = Date.now();
+
       // Start both recording and recognition
       recognition.start();
       mediaRecorder.start(100);
       setIsRecording(true);
       dispatch(appActions.setRecordingState('recording'));
-      updateAudioLevel();
+      extractVoiceFeatures();
 
       const message = 'Recording started... Speak now!';
 
@@ -287,7 +420,7 @@ export default function VoiceRecorder({
     if (mediaRecorderRef.current && isRecording && isPaused) {
       mediaRecorderRef.current.resume();
       setIsPaused(false);
-      updateAudioLevel();
+      extractVoiceFeatures();
     }
   };
 

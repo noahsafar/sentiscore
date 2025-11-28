@@ -93,13 +93,13 @@ export default function Dashboard() {
     }
   };
 
-  const handleVoiceRecording = async (recording: Blob, transcript: string) => {
+  const handleVoiceRecording = async (recording: Blob, transcript: string, voiceFeatures?: any) => {
     console.log('🎤 handleVoiceRecording called with transcript:', transcript);
     try {
       dispatch(appActions.setRecordingState('processing'));
 
-      // Create new journal entry (no replacement logic)
-      const newEntry = await saveNewEntry(transcript, recording);
+      // Create new journal entry with voice analysis (no replacement logic)
+      const newEntry = await saveNewEntry(transcript, recording, voiceFeatures);
 
       // Update the app state
       dispatch(appActions.addEntry(newEntry));

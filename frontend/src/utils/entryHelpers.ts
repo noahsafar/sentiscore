@@ -1,5 +1,14 @@
 import { Entry } from '@/types';
 
+interface VoiceFeatures {
+  averagePitch: number;
+  pitchVariation: number;
+  volumeVariation: number;
+  speakingRate: number;
+  pauses: number;
+  energy: number;
+}
+
 /**
  * Check if an entry is for today
  */
@@ -23,6 +32,7 @@ export function getTodayEntryCount(entries: Entry[]): number {
 export async function saveNewEntry(
   transcript: string,
   audioBlob?: Blob,
+  voiceFeatures?: VoiceFeatures,
   additionalData?: any
 ): Promise<Entry> {
   const now = new Date(); // Use actual current time for timestamp
@@ -35,10 +45,15 @@ export async function saveNewEntry(
     formData.append('transcript', transcript);
     formData.append('date', now.toISOString());
 
+    // Add voice features if available
+    if (voiceFeatures) {
+      formData.append('voiceFeatures', JSON.stringify(voiceFeatures));
+    }
+
     // Add any additional data
     if (additionalData) {
       Object.keys(additionalData).forEach(key => {
-        if (key !== 'audio') {
+        if (key !== 'audio' && key !== 'voiceFeatures') {
           formData.append(key, JSON.stringify(additionalData[key]));
         }
       });
@@ -66,6 +81,7 @@ export async function saveNewEntry(
       body: JSON.stringify({
         transcript,
         date: now.toISOString(),
+        voiceFeatures,
         ...additionalData,
       }),
     });

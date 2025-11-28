@@ -90,14 +90,14 @@ let registeredUsers = [
 ];
 
 // Advanced AI Analysis Functions
-async function analyzeTranscriptWithAI(transcript) {
+async function analyzeTranscriptWithAI(transcript, voiceFeatures = null) {
   if (!anthropic) {
     // Fallback to basic analysis if Anthropic is not available
     return generateBasicMoodScores(transcript);
   }
 
   try {
-    const prompt = `Analyze this journal entry for emotional content and provide detailed mood scores.
+    let prompt = `Analyze this journal entry for emotional content and provide detailed mood scores.
 Respond with ONLY a JSON object in this exact format:
 {
   "stress": number (1-10),
@@ -112,6 +112,21 @@ Respond with ONLY a JSON object in this exact format:
 }
 
 Journal entry: "${transcript}"`;
+
+    // Add voice analysis if available
+    if (voiceFeatures) {
+      prompt += `
+
+VOICE ANALYSIS DATA:
+- Average Pitch: ${voiceFeatures.averagePitch} Hz (Lower pitch may indicate sadness, higher pitch may indicate excitement)
+- Pitch Variation: ${voiceFeatures.pitchVariation} (Higher variation may indicate emotional expressiveness)
+- Volume Variation: ${voiceFeatures.volumeVariation} (Higher variation may indicate emotional intensity)
+- Speaking Rate: ${voiceFeatures.speakingRate} words/minute (Faster rate may indicate anxiety/excitement, slower may indicate sadness)
+- Pauses: ${voiceFeatures.pauses} (More pauses may indicate thoughtfulness or sadness)
+- Energy Level: ${voiceFeatures.energy}/100 (Higher energy may indicate positive emotions)
+
+Consider both the text content AND voice patterns when analyzing emotional state. Voice characteristics often reveal emotions that words alone may not capture.`;
+    }
 
     const response = await anthropic.messages.create({
       model: 'claude-3-sonnet-20241022',
@@ -563,6 +578,7 @@ const server = http.createServer((req, res) => {
 
           let transcript = '';
           let date = new Date().toISOString();
+          let voiceFeatures = null;
 
           parts.forEach(part => {
             const trimmed = part.trim();
@@ -583,11 +599,23 @@ const server = http.createServer((req, res) => {
                 date = trimmed.substring(headerEnd + 4).replace(/\r\n$/, '') || date;
               }
             }
+            if (trimmed.includes('name="voiceFeatures"')) {
+              const lines = trimmed.split('\r\n');
+              const headerEnd = trimmed.indexOf('\r\n\r\n');
+              if (headerEnd !== -1) {
+                const featuresJson = trimmed.substring(headerEnd + 4).replace(/\r\n$/, '');
+                try {
+                  voiceFeatures = JSON.parse(featuresJson);
+                } catch (e) {
+                  console.error('Failed to parse voice features:', e);
+                }
+              }
+            }
           });
 
           // Create new entry with AI-powered analysis
           const createEntryWithAI = async () => {
-            const analysisResult = await analyzeTranscriptWithAI(transcript || "Daily journal entry recorded");
+            const analysisResult = await analyzeTranscriptWithAI(transcript || "Daily journal entry recorded", voiceFeatures);
 
             // Use client IP as a simple user identifier (in production, get from JWT)
             const clientIP = req.socket.remoteAddress || 'unknown';
@@ -611,6 +639,7 @@ const server = http.createServer((req, res) => {
               tags: analysisResult.tags || [],
               sentiment: analysisResult.sentiment || 'neutral',
               insights: analysisResult.insights || [],
+              voiceFeatures: voiceFeatures,
               isPublic: false,
               createdAt: date,
               updatedAt: date
@@ -691,7 +720,7 @@ const server = http.createServer((req, res) => {
       });
       req.on('end', () => {
         try {
-          const { transcript, tags = [] } = JSON.parse(body);
+          const { transcript, tags = [], voiceFeatures } = JSON.parse(body);
 
           const newEntry = {
             id: randomBytes(16).toString('hex'),
@@ -700,14 +729,7 @@ const server = http.createServer((req, res) => {
             transcript,
             audioUrl: null,
             duration: 0,
-            moodScores: {
-              stress: 5.0,
-              happiness: 7.0,
-              clarity: 6.0,
-              energy: 6.0,
-              emotionalStability: 6.5,
-              overall: 6.1
-            },
+            voiceFeatures: voiceFeatures,
             tags,
             isPublic: false,
             createdAt: new Date().toISOString(),
