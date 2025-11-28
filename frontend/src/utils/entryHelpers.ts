@@ -37,7 +37,7 @@ export async function saveOrReplaceTodayEntry(
   additionalData?: any
 ): Promise<{ entry: Entry; wasReplaced: boolean }> {
   const todayEntry = findTodayEntry(entries);
-  const today = getTodayNormalized();
+  const now = new Date(); // Use actual current time for timestamp
 
   if (todayEntry) {
     // Replace existing entry
@@ -45,7 +45,7 @@ export async function saveOrReplaceTodayEntry(
 
     const updateData = {
       transcript,
-      date: today.toISOString(),
+      date: now.toISOString(), // Use actual current time
       ...additionalData,
     };
 
@@ -73,7 +73,7 @@ export async function saveOrReplaceTodayEntry(
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
       formData.append('transcript', transcript);
-      formData.append('date', today.toISOString());
+      formData.append('date', now.toISOString()); // Use actual current time
 
       // Add any additional data
       if (additionalData) {
@@ -105,7 +105,7 @@ export async function saveOrReplaceTodayEntry(
         },
         body: JSON.stringify({
           transcript,
-          date: today.toISOString(),
+          date: now.toISOString(), // Use actual current time
           ...additionalData,
         }),
       });
