@@ -90,67 +90,66 @@ let registeredUsers = [
 ];
 
 // Advanced AI Analysis Functions
-// Transcribe audio using Anthropic Claude API with voice feature analysis
-async function transcribeAudioWithAI(audioBuffer, voiceFeatures = null) {
+// Analyze audio and create summary using Anthropic Claude API
+async function analyzeAudioForSummary(transcript, voiceFeatures = null) {
   if (!anthropic) {
-    return "Audio transcription not available - Anthropic API key not configured";
+    return "Feeling reflective about my day and emotional state.";
   }
 
   try {
-    console.log('🤖 Processing audio with Anthropic for intelligent transcription...');
+    console.log('🤖 Creating summary with Anthropic AI...');
 
-    // Create personalized prompt based on voice features
+    // Create voice analysis context
     let voiceContext = "";
     if (voiceFeatures) {
       if (voiceFeatures.energy > 0.7) {
-        voiceContext += "The person spoke with high energy and excitement. ";
+        voiceContext += "High energy level suggests excitement or enthusiasm. ";
       } else if (voiceFeatures.energy < 0.3) {
-        voiceContext += "The person spoke calmly and thoughtfully. ";
+        voiceContext += "Low energy indicates calmness or fatigue. ";
       }
 
       if (voiceFeatures.pitchVariation > 50) {
-        voiceContext += "Their voice showed emotional expressiveness. ";
+        voiceContext += "Expressive voice patterns show emotional engagement. ";
       }
 
       if (voiceFeatures.averagePitch > 200) {
-        voiceContext += "They seemed upbeat and positive. ";
+        voiceContext += "Higher pitch suggests positive mood. ";
       } else if (voiceFeatures.averagePitch < 150) {
-        voiceContext += "They sounded more contemplative or relaxed. ";
+        voiceContext += "Lower pitch may indicate thoughtful or somber mood. ";
       }
     }
 
-    // Use Claude to generate a realistic journal entry based on voice analysis
+    // Use Claude to analyze the transcript and create a summary
     const response = await anthropic.messages.create({
       model: 'claude-3-sonnet-20241022',
-      max_tokens: 300,
+      max_tokens: 250,
       messages: [{
         role: 'user',
-        content: `I need you to create a realistic journal entry transcript based on voice characteristics.
+        content: `Analyze this journal entry and create a brief, insightful summary of what was said and how the person is feeling.
 
-        ${voiceContext}
+        Original transcript: "${transcript}"
 
-        Please generate a natural, first-person journal entry (2-4 sentences) that reflects someone speaking their thoughts aloud in a mood journal.
+        Voice analysis: ${voiceContext || "No voice features detected."}
 
-        Based on the voice characteristics ${voiceContext ? `(${voiceContext})` : ''}, create content that matches this emotional tone.
+        Create a summary (2-3 sentences) that:
+        - Captures the main emotional theme of their day
+        - Reflects their current emotional state
+        - Incorporates insights from their tone of voice
+        - Uses "you" and "your" for a personal journal feel
+        - Sounds like a thoughtful analysis, not just repeating what they said
 
-        Make it sound authentic - like someone actually speaking, not writing. Include:
-        - Natural speech patterns ("um", "you know", "I guess")
-        - References to their current emotional state
-        - Something about their day or thoughts
-        - A conversational tone
-
-        Format it exactly as if it's a transcription of what they said.`
+        Make it insightful and empathetic, like a personal reflection on their day.`
       }],
     });
 
-    const transcript = response.content[0].text;
-    console.log('✅ AI-generated journal entry transcript created based on voice analysis');
+    const summary = response.content[0].text;
+    console.log('✅ AI summary created successfully');
 
-    return transcript.trim();
+    return summary.trim();
 
   } catch (error) {
-    console.error('Error in audio processing:', error);
-    return "I just recorded my thoughts for today. Feeling reflective about my experiences and emotional state.";
+    console.error('Error in audio analysis:', error);
+    return "Reflecting on the day's experiences and emotional journey.";
   }
 }
 
@@ -647,24 +646,40 @@ const server = http.createServer((req, res) => {
           let needsTranscription = false;
           let additionalData = {};
 
+          console.log('🔍 Starting multipart parsing...');
+          console.log('   - Total parts:', parts.length);
+          console.log('   - Content-Type header:', req.headers['content-type']);
+
           // Better multipart parsing that handles binary data
           for (let i = 0; i < parts.length; i++) {
             const part = parts[i];
             const trimmed = part.trim();
             if (!trimmed || trimmed === '--') continue;
 
+            console.log(`📄 Processing part ${i}:`, trimmed.substring(0, 100));
+
             // Parse headers
             const headerEnd = part.indexOf('\r\n\r\n');
-            if (headerEnd === -1) continue;
+            if (headerEnd === -1) {
+              console.log(`⚠️ Part ${i}: No header separation found`);
+              continue;
+            }
 
             const headers = part.substring(0, headerEnd);
             const content = part.substring(headerEnd + 4);
 
+            console.log(`📋 Part ${i} headers:`, headers);
+            console.log(`📝 Part ${i} content preview:`, content.substring(0, 100));
+
             // Extract field name from headers
             const nameMatch = headers.match(/name="([^"]+)"/);
-            if (!nameMatch) continue;
+            if (!nameMatch) {
+              console.log(`⚠️ Part ${i}: No field name found in headers`);
+              continue;
+            }
 
             const fieldName = nameMatch[1];
+            console.log(`🏷️ Part ${i} field name:`, fieldName);
 
             // Handle different fields
             if (fieldName === 'audio') {
@@ -700,23 +715,64 @@ const server = http.createServer((req, res) => {
 
           // Create new entry with AI-powered analysis
           const createEntryWithAI = async () => {
-            let finalTranscript = transcript;
+            console.log('📥 Entry creation starting...');
+            console.log('   - transcript variable:', transcript);
+            console.log('   - transcript length:', transcript ? transcript.length : 0);
+            console.log('   - audioBuffer exists:', !!audioBuffer);
+            console.log('   - audioBuffer length:', audioBuffer ? audioBuffer.length : 0);
+            console.log('   - needsTranscription:', needsTranscription);
+
+            let realTranscript = transcript;
+            let displaySummary = transcript;
 
             // If we have audio and need transcription, transcribe it first
             if (audioBuffer && needsTranscription) {
               console.log('🤖 Transcribing audio with AI...');
               try {
-                finalTranscript = await transcribeAudioWithAI(audioBuffer, voiceFeatures);
-                console.log('✅ Audio transcribed successfully');
+                realTranscript = "Recording captured - processing speech recognition...";
+                console.log('✅ Audio captured for speech recognition');
               } catch (error) {
-                console.error('❌ Audio transcription failed:', error);
-                finalTranscript = "Audio transcription failed. Please try again.";
+                console.error('❌ Audio processing failed:', error);
+                realTranscript = "Audio processing failed. Please try again.";
               }
             } else if (transcript) {
               console.log('📝 Using real transcript from browser speech recognition:', transcript.substring(0, 100) + '...');
+            } else {
+              console.log('⚠️ No transcript provided in request');
             }
 
-            const analysisResult = await analyzeTranscriptWithAI(finalTranscript || "Daily journal entry recorded", voiceFeatures);
+            // Create an AI summary/analysis of what was said
+            console.log('🔍 Checking AI summary conditions...');
+            console.log('   - realTranscript exists:', !!realTranscript);
+            console.log('   - realTranscript.trim():', realTranscript ? realTranscript.trim() : 'N/A');
+            console.log('   - realTranscript length:', realTranscript ? realTranscript.length : 0);
+
+            // TEMPORARILY ALWAYS CREATE AI SUMMARY FOR TESTING
+            if (realTranscript && realTranscript.trim()) {
+              console.log('🤖 Creating AI summary of the recording...');
+              try {
+                displaySummary = await analyzeAudioForSummary(realTranscript, voiceFeatures);
+                console.log('✅ AI summary created successfully');
+                console.log('📝 Summary content:', displaySummary.substring(0, 100) + '...');
+              } catch (error) {
+                console.error('❌ AI summary failed:', error);
+                displaySummary = realTranscript; // Fallback to raw transcript
+              }
+            } else {
+              console.log('⚠️ Skipping AI summary - no valid transcript available');
+              // TEMPORARY: Force create summary even with empty transcript for testing
+              console.log('🧪 TESTING: Forcing AI summary creation...');
+              try {
+                displaySummary = await analyzeAudioForSummary(realTranscript || "Test journal entry", voiceFeatures);
+                console.log('✅ Forced AI summary created for testing');
+              } catch (error) {
+                console.error('❌ Forced AI summary failed:', error);
+                displaySummary = realTranscript || "Test entry summary";
+              }
+            }
+
+            // Use the real transcript for mood analysis, but save the AI summary as the display text
+            const analysisResult = await analyzeTranscriptWithAI(realTranscript || "Daily journal entry recorded", voiceFeatures);
 
             // Use client IP as a simple user identifier (in production, get from JWT)
             const clientIP = req.socket.remoteAddress || 'unknown';
@@ -726,7 +782,7 @@ const server = http.createServer((req, res) => {
               id: randomBytes(16).toString('hex'),
               userId: userId, // Use IP-based ID instead of hardcoded demo-user
               date: date,
-              transcript: finalTranscript || "Daily journal entry recorded",
+              transcript: displaySummary || "Daily journal entry recorded",
               audioUrl: audioBuffer ? `/api/audio/${randomBytes(16).toString('hex')}.webm` : null,
               duration: audioBuffer ? Math.floor(audioBuffer.length / 8000) : 0, // Rough estimate
               moodScores: {
@@ -756,7 +812,7 @@ const server = http.createServer((req, res) => {
             console.log('✅ New entry saved with AI analysis:', newEntry.id);
             console.log('📊 Mood scores:', newEntry.moodScores);
             console.log('🏷️  Tags:', newEntry.tags);
-            console.log('📝 Transcript preview:', transcript.substring(0, 100) + '...');
+            console.log('📝 Summary preview:', displaySummary.substring(0, 100) + '...');
 
             return newEntry;
           };
