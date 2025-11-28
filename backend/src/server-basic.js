@@ -777,6 +777,69 @@ const server = http.createServer((req, res) => {
       }));
     });
   }
+  else if (path.startsWith('/api/entries/') && req.method === 'PATCH') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    req.on('end', () => {
+      try {
+        const entryId = path.split('/').pop();
+        const updateData = JSON.parse(body);
+
+        // Use client IP as a simple user identifier (in production, get from JWT)
+        const clientIP = req.socket.remoteAddress || 'unknown';
+        const userId = `user_${clientIP.replace(/[^\w]/g, '_')}`;
+        const entries = userEntries[userId] || [];
+
+        // Find the entry to update
+        const entryIndex = entries.findIndex(entry => entry.id === entryId);
+
+        if (entryIndex === -1) {
+          res.writeHead(404);
+          res.end(JSON.stringify({
+            success: false,
+            error: {
+              code: 'ENTRY_NOT_FOUND',
+              message: 'Entry not found'
+            }
+          }));
+          return;
+        }
+
+        // Update the entry with new data
+        const updatedEntry = {
+          ...entries[entryIndex],
+          ...updateData,
+          id: entryId, // Ensure ID doesn't change
+          updatedAt: new Date().toISOString()
+        };
+
+        // Replace the entry in the array
+        entries[entryIndex] = updatedEntry;
+        userEntries[userId] = entries;
+
+        console.log('✅ Entry updated successfully:', entryId);
+        console.log('📝 Updated transcript preview:', updateData.transcript?.substring(0, 100) + '...');
+
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          success: true,
+          data: updatedEntry
+        }));
+      } catch (error) {
+        console.error('Error updating entry:', error);
+        res.writeHead(400);
+        res.end(JSON.stringify({
+          success: false,
+          error: {
+            code: 'INVALID_DATA',
+            message: 'Invalid update data provided'
+          }
+        }));
+      }
+    });
+  }
   else if (path.startsWith('/api/entries/') && req.method === 'DELETE') {
     // Extract entry ID from URL
     const entryId = path.split('/').pop();
@@ -840,6 +903,7 @@ server.listen(PORT, () => {
   console.log(`   POST /api/auth/register`);
   console.log(`   GET  /api/entries`);
   console.log(`   POST /api/entries`);
+  console.log(`   PATCH /api/entries/:id`);
   console.log(`   GET  /api/dashboard/stats`);
   console.log(`   POST /api/transcribe`);
   console.log(`   GET  /api/insights`);
