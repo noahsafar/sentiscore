@@ -8,7 +8,7 @@ import InsightCard from '@/components/InsightCard';
 import QuickStats from '@/components/QuickStats';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import { ChartBarIcon, MicrophoneIcon, ArrowTrendingUpIcon, ChevronDownIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { saveOrReplaceTodayEntry, findTodayEntry } from '@/utils/entryHelpers';
+import { saveNewEntry, getTodayEntryCount } from '@/utils/entryHelpers';
 import toast from 'react-hot-toast';
 
 export default function Dashboard() {
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year' | 'all'>('month');
   const [selectedInsightIndex, setSelectedInsightIndex] = useState(0);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
 
   useEffect(() => {
     if (!state.user) {
@@ -24,38 +25,41 @@ export default function Dashboard() {
       return;
     }
 
-    loadDashboardData();
-  }, [state.user]); // Load data when component mounts or user changes
-
-  // Always refresh data when component mounts (handles page refresh and navigation)
-  useEffect(() => {
-    if (state.user) {
+    // Only load data if it hasn't been loaded in the last 30 seconds
+    const now = Date.now();
+    if (now - lastLoadTime > 30000) {
       loadDashboardData();
+      setLastLoadTime(now);
     }
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, [state.user]); // Load data when component mounts or user changes (with caching)
 
-  // Additional effect to refresh data when component becomes visible (handles navigation)
+  // Minimal refresh on visibility change (with debouncing)
   useEffect(() => {
+    let visibilityTimeout: NodeJS.Timeout;
+
     const handleVisibilityChange = () => {
       if (!document.hidden && state.user) {
-        loadDashboardData();
-      }
-    };
+        // Clear existing timeout
+        if (visibilityTimeout) clearTimeout(visibilityTimeout);
 
-    const handleFocus = () => {
-      if (state.user) {
-        loadDashboardData();
+        // Debounce the refresh call
+        visibilityTimeout = setTimeout(() => {
+          const now = Date.now();
+          if (now - lastLoadTime > 30000) { // 30 second cache
+            loadDashboardData();
+            setLastLoadTime(now);
+          }
+        }, 1000);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
+      if (visibilityTimeout) clearTimeout(visibilityTimeout);
     };
-  }, [state.user]);
+  }, [state.user, lastLoadTime]);
 
   const loadDashboardData = async () => {
     try {
@@ -94,23 +98,14 @@ export default function Dashboard() {
     try {
       dispatch(appActions.setRecordingState('processing'));
 
-      // Use centralized function to save or replace today's entry
-      const result = await saveOrReplaceTodayEntry(
-        state.entries || [],
-        transcript,
-        recording
-      );
+      // Create new journal entry (no replacement logic)
+      const newEntry = await saveNewEntry(transcript, recording);
 
       // Update the app state
-      if (result.wasReplaced) {
-        dispatch(appActions.updateEntry(result.entry));
-        toast.success('Today\'s entry has been replaced!');
-      } else {
-        dispatch(appActions.addEntry(result.entry));
-        toast.success('Daily entry saved successfully!');
-      }
+      dispatch(appActions.addEntry(newEntry));
+      toast.success('Journal entry saved successfully!');
 
-      // Reload all dashboard data after adding/replacing entry
+      // Reload all dashboard data after adding entry
       await loadDashboardData();
     } catch (error) {
       console.error('❌ Failed to save entry:', error);
@@ -120,7 +115,7 @@ export default function Dashboard() {
     }
   };
 
-  const hasEntryToday = findTodayEntry(state.entries) !== null;
+  const todayEntryCount = getTodayEntryCount(state.entries);
 
   return (
     <Layout>
@@ -131,9 +126,9 @@ export default function Dashboard() {
             Welcome back, {state.user?.name || 'there'}!
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {hasEntryToday
-              ? "Daily entry complete! Record again to replace today's entry."
-              : "How are you feeling today? Let's record your daily check-in."}
+            {todayEntryCount > 0
+              ? `You've recorded ${todayEntryCount} ${todayEntryCount === 1 ? 'entry' : 'entries'} today. How are you feeling now?`
+              : "How are you feeling today? Let's record your first check-in."}
           </p>
         </div>
 
@@ -154,23 +149,23 @@ export default function Dashboard() {
               <div className="flex items-center justify-center mb-4">
                 <MicrophoneIcon className="h-6 w-6 text-primary-500 mr-2" />
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {hasEntryToday ? "Replace Today's Entry" : "Daily Check-in"}
+                  Record Journal Entry
                 </h2>
               </div>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
                 Take a moment to reflect on how you're feeling
               </p>
-              {hasEntryToday && (
-                <div className="inline-flex items-center space-x-2 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-4 py-2 rounded-full">
+              {todayEntryCount > 0 && (
+                <div className="inline-flex items-center space-x-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-4 py-2 rounded-full">
                   <CheckCircleIcon className="h-5 w-5" />
-                  <span className="text-sm font-medium">Check-in complete for today</span>
+                  <span className="text-sm font-medium">{todayEntryCount} {todayEntryCount === 1 ? 'entry' : 'entries'} today</span>
                 </div>
               )}
             </div>
 
             <VoiceRecorder
               onRecordingComplete={handleVoiceRecording}
-              hasEntryToday={hasEntryToday}
+              hasEntryToday={false} // Never disable recording - always allow new entries
             />
           </div>
         </div>

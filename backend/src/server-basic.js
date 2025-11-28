@@ -250,7 +250,7 @@ function generateBasicInsights() {
   return [];
 }
 
-// Calculate user statistics from their entries
+// Calculate user statistics from their entries (supports multiple entries per day)
 function calculateUserStats(entries) {
   if (!entries || entries.length === 0) {
     return {
@@ -268,8 +268,28 @@ function calculateUserStats(entries) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // Sort entries by date (newest first)
-  const sortedEntries = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Group entries by date for daily averaging
+  const entriesByDate = {};
+  entries.forEach(entry => {
+    const entryDate = new Date(entry.date);
+    const dateKey = entryDate.toDateString(); // YYYY-MM-DD format
+    if (!entriesByDate[dateKey]) {
+      entriesByDate[dateKey] = [];
+    }
+    entriesByDate[dateKey].push(entry);
+  });
+
+  // Calculate daily averages (one entry per day with averaged mood scores)
+  const dailyAverages = Object.keys(entriesByDate).map(dateKey => {
+    const dayEntries = entriesByDate[dateKey];
+    const avgMood = dayEntries.reduce((sum, entry) => sum + (entry.moodScores?.overall || 0), 0) / dayEntries.length;
+
+    return {
+      date: new Date(dateKey),
+      avgMood: avgMood || 0,
+      entryCount: dayEntries.length
+    };
+  }).sort((a, b) => b.date - a.date); // Sort newest first
 
   // Calculate total entries
   const totalEntries = entries.length;
@@ -278,9 +298,9 @@ function calculateUserStats(entries) {
   let currentStreak = 0;
   let checkDate = new Date(today);
 
-  for (let i = 0; i < sortedEntries.length; i++) {
-    const entryDate = new Date(sortedEntries[i].date);
-    const entryDay = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate());
+  for (let i = 0; i < dailyAverages.length; i++) {
+    const entryDay = dailyAverages[i].date;
+    entryDay.setHours(0, 0, 0, 0);
 
     if (entryDay.getTime() === checkDate.getTime()) {
       currentStreak++;
@@ -295,16 +315,16 @@ function calculateUserStats(entries) {
   let tempStreak = 0;
   let lastDate = null;
 
-  const chronologicalEntries = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const chronologicalDays = [...dailyAverages].sort((a, b) => a.date - b.date);
 
-  for (const entry of chronologicalEntries) {
-    const entryDate = new Date(entry.date);
-    const entryDay = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate());
+  for (const dayData of chronologicalDays) {
+    const dayDate = new Date(dayData.date);
+    dayDate.setHours(0, 0, 0, 0);
 
     if (!lastDate) {
       tempStreak = 1;
     } else {
-      const daysDiff = Math.round((entryDay - lastDate) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.round((dayDate - lastDate) / (1000 * 60 * 60 * 24));
       if (daysDiff === 1) {
         tempStreak++;
       } else if (daysDiff > 1) {
@@ -313,24 +333,20 @@ function calculateUserStats(entries) {
       }
     }
 
-    lastDate = entryDay;
+    lastDate = dayDate;
     longestStreak = Math.max(longestStreak, tempStreak);
   }
 
-  // Calculate average mood for different time periods
+  // Calculate average mood for different time periods using daily averages
   const calculateAverageMood = (startDate, endDate) => {
-    const filteredEntries = entries.filter(entry => {
-      const entryDate = new Date(entry.date);
-      return entryDate >= startDate && entryDate < endDate;
+    const filteredDays = dailyAverages.filter(dayData => {
+      return dayData.date >= startDate && dayData.date < endDate;
     });
 
-    if (filteredEntries.length === 0) return 0;
+    if (filteredDays.length === 0) return 0;
 
-    const totalMood = filteredEntries.reduce((sum, entry) => {
-      return sum + (entry.moodScores?.overall || 0);
-    }, 0);
-
-    return totalMood / filteredEntries.length;
+    const totalMood = filteredDays.reduce((sum, dayData) => sum + dayData.avgMood, 0);
+    return totalMood / filteredDays.length;
   };
 
   // This week
