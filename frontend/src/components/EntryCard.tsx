@@ -184,33 +184,27 @@ export default function EntryCard({
         </div>
       </div>
 
-      {/* Mood Scores Bar */}
+      {/* Mood Score Gauge */}
       <div className="mb-4">
-        <div className="flex space-x-1 h-2">
-          <div
-            className="flex-1 bg-green-500 rounded-l"
-            style={{ width: `${(entry.moodScores.happiness / 10) * 100}%` }}
-            title={`Happiness: ${Math.round(entry.moodScores.happiness)}/10`}
-          />
-          <div
-            className="flex-1 bg-blue-500"
-            style={{ width: `${(entry.moodScores.clarity / 10) * 100}%` }}
-            title={`Clarity: ${Math.round(entry.moodScores.clarity)}/10`}
-          />
-          <div
-            className="flex-1 bg-yellow-500"
-            style={{ width: `${(entry.moodScores.energy / 10) * 100}%` }}
-            title={`Energy: ${Math.round(entry.moodScores.energy)}/10`}
-          />
-          <div
-            className="flex-1 bg-purple-500 rounded-r"
-            style={{ width: `${(entry.moodScores.emotionalStability / 10) * 100}%` }}
-            title={`Emotional Stability: ${Math.round(entry.moodScores.emotionalStability)}/10`}
-          />
-        </div>
-        <div className="flex justify-between mt-1">
-          <span className="text-xs text-gray-500">Happiness</span>
-          <span className="text-xs text-gray-500">Stability</span>
+        <div className="relative">
+          {/* Gauge line */}
+          <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full relative overflow-hidden">
+            {/* Gradient fill based on mood score */}
+            <div
+              className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 rounded-full transition-all duration-300"
+              style={{ width: `${(entry.moodScores.overall / 10) * 100}%` }}
+            />
+            {/* Marker/indicator */}
+            <div
+              className="absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 w-4 h-4 bg-white dark:bg-gray-900 border-2 border-gray-800 dark:border-gray-200 rounded-full shadow-md transition-all duration-300"
+              style={{ left: `${(entry.moodScores.overall / 10) * 100}%` }}
+            />
+          </div>
+          {/* Scale labels */}
+          <div className="flex justify-between mt-1">
+            <span className="text-xs text-gray-500">0</span>
+            <span className="text-xs text-gray-500">10</span>
+          </div>
         </div>
       </div>
 

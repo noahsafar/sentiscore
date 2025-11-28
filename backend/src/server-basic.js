@@ -154,6 +154,22 @@ async function analyzeAudioForSummary(transcript, voiceFeatures = null) {
 }
 
 async function analyzeTranscriptWithAI(transcript, voiceFeatures = null) {
+  // If no valid transcript, return neutral mood scores
+  if (!transcript || !transcript.trim() || transcript.length < 3) {
+    console.log('⚠️ No valid transcript for mood analysis - returning neutral scores');
+    return {
+      stress: 5.0,
+      happiness: 5.0,
+      clarity: 5.0,
+      energy: 5.0,
+      emotionalStability: 5.0,
+      overall: 5.0,
+      tags: ['no-speech'],
+      sentiment: 'neutral',
+      insights: ['No clear speech detected for analysis']
+    };
+  }
+
   if (!anthropic) {
     // Fallback to basic analysis if Anthropic is not available
     return generateBasicMoodScores(transcript);
@@ -761,8 +777,8 @@ const server = http.createServer((req, res) => {
             console.log('   - realTranscript.trim():', realTranscript ? realTranscript.trim() : 'N/A');
             console.log('   - realTranscript length:', realTranscript ? realTranscript.length : 0);
 
-            // TEMPORARILY ALWAYS CREATE AI SUMMARY FOR TESTING
-            if (realTranscript && realTranscript.trim()) {
+            // Only create AI summary if we have a real transcript
+            if (realTranscript && realTranscript.trim() && realTranscript.length >= 3) {
               console.log('🤖 Creating AI summary of the recording...');
               try {
                 displaySummary = await analyzeAudioForSummary(realTranscript, voiceFeatures);
@@ -774,19 +790,15 @@ const server = http.createServer((req, res) => {
               }
             } else {
               console.log('⚠️ Skipping AI summary - no valid transcript available');
-              // TEMPORARY: Force create summary even with empty transcript for testing
-              console.log('🧪 TESTING: Forcing AI summary creation...');
-              try {
-                displaySummary = await analyzeAudioForSummary(realTranscript || "Test journal entry", voiceFeatures);
-                console.log('✅ Forced AI summary created for testing');
-              } catch (error) {
-                console.error('❌ Forced AI summary failed:', error);
-                displaySummary = realTranscript || "Test entry summary";
-              }
+              displaySummary = realTranscript || transcript || "Speech recognition didn't capture any clear speech. Please try speaking more clearly.";
             }
 
             // Use the real transcript for mood analysis, but save the AI summary as the display text
-            const analysisResult = await analyzeTranscriptWithAI(realTranscript || "Daily journal entry recorded", voiceFeatures);
+            // Only analyze mood if we have actual speech content
+            const analysisResult = await analyzeTranscriptWithAI(
+              (realTranscript && realTranscript.trim() && realTranscript.length > 5) ? realTranscript : null,
+              voiceFeatures
+            );
 
             // Use client IP as a simple user identifier (in production, get from JWT)
             const clientIP = req.socket.remoteAddress || 'unknown';

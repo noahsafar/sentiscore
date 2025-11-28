@@ -18,7 +18,7 @@ export default function Insights() {
   const loadInsights = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/insights');
+      const response = await fetch('http://localhost:8000/api/insights');
       const { data } = await response.json();
       setInsights(data.insights || []);
     } catch (error) {
