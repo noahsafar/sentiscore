@@ -163,16 +163,18 @@ async function analyzeTranscriptWithAI(transcript, voiceFeatures = null) {
     let prompt = `Analyze this journal entry for emotional content and provide detailed mood scores.
 Respond with ONLY a JSON object in this exact format:
 {
-  "stress": number (1-10),
-  "happiness": number (1-10),
-  "clarity": number (1-10),
-  "energy": number (1-10),
-  "emotionalStability": number (1-10),
-  "overall": number (1-10),
+  "stress": number (1.0-10.0, use decimals like 6.4 for precision),
+  "happiness": number (1.0-10.0, use decimals like 7.8 for precision),
+  "clarity": number (1.0-10.0, use decimals like 5.2 for precision),
+  "energy": number (1.0-10.0, use decimals like 8.1 for precision),
+  "emotionalStability": number (1.0-10.0, use decimals like 6.9 for precision),
+  "overall": number (1.0-10.0, use decimals like 7.3 for precision),
   "tags": ["tag1", "tag2", "tag3"],
   "sentiment": "positive|negative|neutral",
   "insights": ["insight1", "insight2"]
 }
+
+IMPORTANT: Use precise decimal values (e.g., 6.4, 7.8, 5.2) instead of whole numbers or .0 values. This allows for more accurate mood tracking and trend analysis.
 
 Journal entry: "${transcript}"`;
 
@@ -215,49 +217,61 @@ function generateBasicMoodScores(transcript) {
   // Basic sentiment analysis fallback
   const lowerText = transcript.toLowerCase();
 
-  let stress = 5;
-  let happiness = 5;
-  let clarity = 5;
-  let energy = 5;
-  let emotionalStability = 5;
+  let stress = 5.0;
+  let happiness = 5.0;
+  let clarity = 5.0;
+  let energy = 5.0;
+  let emotionalStability = 5.0;
+
+  // Add random variation for more realistic decimal scores
+  const randomVariation = () => (Math.random() * 1.4 - 0.7); // -0.7 to 0.7
 
   // Simple keyword-based analysis
   if (lowerText.includes('stress') || lowerText.includes('anxious') || lowerText.includes('worried')) {
-    stress += 2;
-    happiness -= 1;
-    emotionalStability -= 1;
+    stress += 2.3;
+    happiness -= 1.2;
+    emotionalStability -= 1.1;
   }
   if (lowerText.includes('happy') || lowerText.includes('good') || lowerText.includes('great')) {
-    happiness += 2;
-    stress -= 1;
-    energy += 1;
+    happiness += 2.1;
+    stress -= 1.3;
+    energy += 1.4;
   }
   if (lowerText.includes('tired') || lowerText.includes('exhausted') || lowerText.includes('fatigue')) {
-    energy -= 2;
+    energy -= 2.2;
+    clarity -= 0.8;
   }
   if (lowerText.includes('clear') || lowerText.includes('focused') || lowerText.includes('productive')) {
-    clarity += 2;
-    energy += 1;
+    clarity += 2.0;
+    energy += 0.9;
+    emotionalStability += 0.6;
   }
 
-  // Normalize values
-  stress = Math.max(1, Math.min(10, stress));
-  happiness = Math.max(1, Math.min(10, happiness));
-  clarity = Math.max(1, Math.min(10, clarity));
-  energy = Math.max(1, Math.min(10, energy));
-  emotionalStability = Math.max(1, Math.min(10, emotionalStability));
+  // Add random variation to make scores more realistic
+  stress += randomVariation();
+  happiness += randomVariation();
+  clarity += randomVariation();
+  energy += randomVariation();
+  emotionalStability += randomVariation();
 
-  const overall = ((11 - stress) + happiness + clarity + energy + emotionalStability) / 5;
+  // Normalize values
+  stress = Math.max(1.0, Math.min(10.0, stress));
+  happiness = Math.max(1.0, Math.min(10.0, happiness));
+  clarity = Math.max(1.0, Math.min(10.0, clarity));
+  energy = Math.max(1.0, Math.min(10.0, energy));
+  emotionalStability = Math.max(1.0, Math.min(10.0, emotionalStability));
+
+  const overall = ((11.0 - stress) + happiness + clarity + energy + emotionalStability) / 5.0;
 
   return {
-    stress: stress.toFixed(1),
-    happiness: happiness.toFixed(1),
-    clarity: clarity.toFixed(1),
-    energy: energy.toFixed(1),
-    emotionalStability: emotionalStability.toFixed(1),
-    overall: overall.toFixed(1),
+    stress: parseFloat(stress.toFixed(1)),
+    happiness: parseFloat(happiness.toFixed(1)),
+    clarity: parseFloat(clarity.toFixed(1)),
+    energy: parseFloat(energy.toFixed(1)),
+    emotionalStability: parseFloat(emotionalStability.toFixed(1)),
+    overall: parseFloat(overall.toFixed(1)),
     tags: extractBasicTags(lowerText),
-    sentiment: happiness > 6 ? 'positive' : happiness < 4 ? 'negative' : 'neutral',
+    sentiment: happiness > 6.0 ? 'positive' : happiness < 4.0 ? 'negative' : 'neutral',
     insights: []
   };
 }
