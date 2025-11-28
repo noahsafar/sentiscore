@@ -101,7 +101,7 @@ export default function EntryCard({
               </p>
               <div className="flex items-center space-x-2 mt-1">
                 <span className={`text-sm font-medium ${calculateMoodColor(entry.moodScores.overall)}`}>
-                  {entry.moodScores.overall.toFixed(1)}/10
+                  {entry.moodScores.overall}/10
                 </span>
                 {entry.duration && (
                   <span className="text-xs text-gray-500">
@@ -187,22 +187,22 @@ export default function EntryCard({
           <div
             className="flex-1 bg-green-500 rounded-l"
             style={{ width: `${(entry.moodScores.happiness / 10) * 100}%` }}
-            title={`Happiness: ${entry.moodScores.happiness}/10`}
+            title={`Happiness: ${Math.round(entry.moodScores.happiness)}/10`}
           />
           <div
             className="flex-1 bg-blue-500"
             style={{ width: `${(entry.moodScores.clarity / 10) * 100}%` }}
-            title={`Clarity: ${entry.moodScores.clarity}/10`}
+            title={`Clarity: ${Math.round(entry.moodScores.clarity)}/10`}
           />
           <div
             className="flex-1 bg-yellow-500"
             style={{ width: `${(entry.moodScores.energy / 10) * 100}%` }}
-            title={`Energy: ${entry.moodScores.energy}/10`}
+            title={`Energy: ${Math.round(entry.moodScores.energy)}/10`}
           />
           <div
             className="flex-1 bg-purple-500 rounded-r"
             style={{ width: `${(entry.moodScores.emotionalStability / 10) * 100}%` }}
-            title={`Emotional Stability: ${entry.moodScores.emotionalStability}/10`}
+            title={`Emotional Stability: ${Math.round(entry.moodScores.emotionalStability)}/10`}
           />
         </div>
         <div className="flex justify-between mt-1">
