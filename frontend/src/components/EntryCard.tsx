@@ -101,9 +101,9 @@ export default function EntryCard({
               </p>
               <div className="flex items-center space-x-2 mt-1">
                 <span className={`text-sm font-medium ${calculateMoodColor(entry.moodScores.overall)}`}>
-                  {entry.moodScores.overall}/10
+                  {entry.moodScores.overall.toFixed(1)}/10
                 </span>
-                {entry.duration && (
+                {entry.duration && entry.duration > 0 && (
                   <span className="text-xs text-gray-500">
                     • {Math.floor(entry.duration / 60)}:{(entry.duration % 60).toString().padStart(2, '0')}
                   </span>
